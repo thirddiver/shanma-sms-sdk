@@ -1,20 +1,22 @@
-# ShanMa SMS SDK (Python)
+# Codex SMS Python SDK
 
+[![CI](https://github.com/thirddiver/shanma-sms-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/thirddiver/shanma-sms-sdk/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![Documentation](https://img.shields.io/badge/docs-guide.shanma.store-green.svg)](https://guide.shanma.store/)
 
-Official Python SDK for **ShanMa SMS Verification Service**. A robust, lightweight, and developer-friendly client designed for receiving automated SMS verification codes across 100+ global regions.
+Official Python SDK for **Codex SMS Verification Service**. A robust, lightweight, and developer-friendly client designed for receiving automated SMS verification codes across 100+ global regions.
 
 ---
 
 ## Key Features
 
-- **Asynchronous & Synchronous Support**: Built with lightweight standard protocols; easily integrates into async worker tasks (Celery, FastAPI, asyncio) or synchronous automation scripts.
+- **Lightweight Standard Library**: Zero mandatory third-party runtime dependencies; utilizes native `urllib` and `json`.
+- **Codex SMS & ShanMa Ecosystem**: Full support for virtual phone numbers, OpenAI / Claude / Telegram / WhatsApp activation workflows.
 - **Smart SMS Polling**: Automatic polling mechanism with configurable interval, exponential backoff, and strict timeout boundaries.
-- **Resilient Error Handling**: Clear exception hierarchy for network timeouts, balance shortage, and upstream carrier delays.
+- **Resilient Error Handling**: Clear exception hierarchy (`AuthenticationError`, `InsufficientBalanceError`, `UpstreamCarrierError`, `TimeoutError`).
 - **Automatic Refund Safety**: Unfulfilled activations are automatically cancelled, preventing wasted credits.
-- **Developer First**: Fully typed with Python `typing` hints and complete IDE autocompletion support.
+- **Fully Typed**: Complete Python `typing` hints and dataclass returns (`OrderResult`, `SmsResult`).
 
 ---
 
@@ -33,10 +35,10 @@ pip install git+https://github.com/thirddiver/shanma-sms-sdk.git
 ### 1. Initialize the Client
 
 ```python
-from shanma import ShanmaClient
+from shanma import CodexSmsClient  # or ShanmaClient
 
-# Initialize with your API access token
-client = ShanmaClient(api_key="YOUR_SHANMA_API_KEY")
+# Initialize with your API token
+client = CodexSmsClient(api_key="YOUR_API_TOKEN")
 ```
 
 ### 2. Check Service & Price Availability
@@ -51,21 +53,29 @@ for svc in services[:5]:
 ### 3. Request a Number & Wait for SMS
 
 ```python
-# Order a temporary virtual phone number (e.g. OpenAI verification)
-order = client.order_number(service="openai", country="usa")
-print(f"Activation ID: {order.activation_id}")
-print(f"Assigned Phone Number: {order.phone_number}")
+from shanma import AuthenticationError, InsufficientBalanceError, ShanmaError
 
-# Poll for incoming SMS code (default timeout: 300 seconds)
-sms_result = client.wait_for_sms(order.activation_id, timeout=300, interval=5)
+try:
+    # Order a temporary virtual phone number (e.g. OpenAI verification)
+    order = client.order_number(service="openai", country="usa")
+    print(f"Activation ID: {order.activation_id}")
+    print(f"Assigned Phone Number: {order.phone_number}")
 
-if sms_result and sms_result.code:
-    print(f"Verification Code Received: {sms_result.code}")
-    print(f"Full Message: {sms_result.full_text}")
-else:
-    # If no SMS arrives within the timeout window, safely cancel to refund
-    client.cancel_order(order.activation_id)
-    print("No SMS received within timeout. Order safely cancelled and refunded.")
+    # Poll for incoming SMS code (default timeout: 300 seconds)
+    sms = client.wait_for_sms(order.activation_id, timeout=180, interval=5)
+
+    if sms and sms.code:
+        print(f"Verification Code Received: {sms.code}")
+        print(f"Full Message: {sms.full_text}")
+    else:
+        # If no SMS arrives within the timeout window, safely cancel to refund
+        client.cancel_order(order.activation_id)
+        print("No SMS received within timeout. Order safely cancelled and refunded.")
+
+except InsufficientBalanceError:
+    print("Insufficient account balance. Please top up your credits.")
+except ShanmaError as e:
+    print(f"Operation failed: {e}")
 ```
 
 ---
@@ -75,10 +85,18 @@ else:
 For complete architecture details, API endpoints reference, and carrier routing guides:
 
 - 📖 **Official Developer Guide**: [https://guide.shanma.store/](https://guide.shanma.store/)
-- 🌐 **Platform Console**: [https://shanma.store/](https://shanma.store/)
+- 🌐 **Codex SMS Platform**: [https://shanma.store/](https://shanma.store/)
 - 📑 **Best Practices**:
   - [OpenAI Registration Phone Risk Assessment](https://guide.shanma.store/)
   - [Global Carrier Line-Type (VoIP vs Real SIM) Routing](https://guide.shanma.store/)
+
+---
+
+## Running Tests
+
+```bash
+python -m unittest discover tests
+```
 
 ---
 

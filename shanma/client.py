@@ -5,6 +5,7 @@ ShanMa SMS API Client.
 import time
 import json
 import urllib.request
+import urllib.parse
 import urllib.error
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass

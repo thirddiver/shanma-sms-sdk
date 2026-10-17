@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="shanma-sms-sdk",
     version="0.1.0",
-    description="Official Python SDK for ShanMa SMS Verification Service",
+    description="Official Python SDK for Codex SMS (ShanMa) Verification Service",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     author="ShanMa Developer Community",
