@@ -3,7 +3,6 @@
 [![CI](https://github.com/thirddiver/shanma-sms-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/thirddiver/shanma-sms-sdk/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![Documentation](https://img.shields.io/badge/docs-guide.shanma.store-green.svg)](https://guide.shanma.store/)
 
 Official Python SDK for **Codex SMS Verification Service**. A robust, lightweight, and developer-friendly client designed for receiving automated SMS verification codes across 100+ global regions.
 
@@ -11,12 +10,12 @@ Official Python SDK for **Codex SMS Verification Service**. A robust, lightweigh
 
 ## Key Features
 
-- **Lightweight Standard Library**: Zero mandatory third-party runtime dependencies; utilizes native `urllib` and `json`.
-- **Codex SMS & ShanMa Ecosystem**: Full support for virtual phone numbers, OpenAI / Claude / Telegram / WhatsApp activation workflows.
-- **Smart SMS Polling**: Automatic polling mechanism with configurable interval, exponential backoff, and strict timeout boundaries.
-- **Resilient Error Handling**: Clear exception hierarchy (`AuthenticationError`, `InsufficientBalanceError`, `UpstreamCarrierError`, `TimeoutError`).
-- **Automatic Refund Safety**: Unfulfilled activations are automatically cancelled, preventing wasted credits.
-- **Fully Typed**: Complete Python `typing` hints and dataclass returns (`OrderResult`, `SmsResult`).
+- **Zero Heavy Dependencies**: Pure Python standard library implementation (`urllib` and `json`); zero third-party runtime bloat.
+- **Pythonic Context Manager**: Safe `with client.activation(...)` pattern that automatically cancels orders and preserves credits if verification times out.
+- **Service Alias Normalization**: Transparently handles friendly aliases (`chatgpt`, `dr`, `go`, `gmail`, `tg`, `wa`) to canonical platform services.
+- **Smart SMS Polling**: Configurable timeouts and polling intervals with optional real-time callback hooks (`on_poll`).
+- **Resilient Error Hierarchy**: Typed exceptions (`AuthenticationError`, `InsufficientBalanceError`, `NumberUnavailableError`, `UpstreamCarrierError`, `TimeoutError`).
+- **Fully Typed**: 100% Python typing annotations with dataclass return types (`OrderResult`, `SmsResult`).
 
 ---
 
@@ -26,73 +25,69 @@ Official Python SDK for **Codex SMS Verification Service**. A robust, lightweigh
 pip install git+https://github.com/thirddiver/shanma-sms-sdk.git
 ```
 
-*(PyPI package `shanma-sms-sdk` coming soon in v0.2 release)*
-
 ---
 
 ## Quickstart
 
-### 1. Initialize the Client
+### 1. Initialize Client
 
 ```python
 from shanma import CodexSmsClient  # or ShanmaClient
 
-# Initialize with your API token
 client = CodexSmsClient(api_key="YOUR_API_TOKEN")
 ```
 
-### 2. Check Service & Price Availability
+### 2. Context Manager Pattern (Recommended)
+
+The context manager automatically cancels the order and refunds your credits if an SMS is not received before timeout:
 
 ```python
-# List available services and current stock status
-services = client.get_available_services(country="usa")
-for svc in services[:5]:
-    print(f"Service: {svc['name']} | Cost: {svc['cost']} | Count: {svc['count']}")
-```
+from shanma import CodexSmsClient, InsufficientBalanceError, ShanmaError
 
-### 3. Request a Number & Wait for SMS
-
-```python
-from shanma import AuthenticationError, InsufficientBalanceError, ShanmaError
+client = CodexSmsClient(api_key="YOUR_API_TOKEN")
 
 try:
-    # Order a temporary virtual phone number (e.g. OpenAI verification)
-    order = client.order_number(service="openai", country="usa")
-    print(f"Activation ID: {order.activation_id}")
-    print(f"Assigned Phone Number: {order.phone_number}")
+    # Service aliases like 'chatgpt' automatically resolve to canonical services
+    with client.activation(service="chatgpt", country="usa") as act:
+        print(f"Activation ID: {act.order.activation_id}")
+        print(f"Assigned Number: {act.order.phone_number}")
 
-    # Poll for incoming SMS code (default timeout: 300 seconds)
-    sms = client.wait_for_sms(order.activation_id, timeout=180, interval=5)
-
-    if sms and sms.code:
-        print(f"Verification Code Received: {sms.code}")
-        print(f"Full Message: {sms.full_text}")
-    else:
-        # If no SMS arrives within the timeout window, safely cancel to refund
-        client.cancel_order(order.activation_id)
-        print("No SMS received within timeout. Order safely cancelled and refunded.")
+        # Wait for verification code with optional callback
+        sms = act.wait_for_sms(timeout=180, interval=5)
+        if sms:
+            print(f"Code received: {sms.code}")
+            print(f"Full message: {sms.full_text}")
+        else:
+            print("Timeout reached; order safely auto-cancelled.")
 
 except InsufficientBalanceError:
-    print("Insufficient account balance. Please top up your credits.")
+    print("Account balance is insufficient. Please top up.")
 except ShanmaError as e:
-    print(f"Operation failed: {e}")
+    print(f"SMS operation failed: {e}")
 ```
 
----
+### 3. Traditional Manual Workflow
 
-## Technical Documentation & Guides
+```python
+# 1. Order a virtual number
+order = client.order_number(service="openai", country="usa")
+print(f"Ordered: {order.phone_number}")
 
-For complete architecture details, API endpoints reference, and carrier routing guides:
+# 2. Poll for verification code
+sms = client.wait_for_sms(order.activation_id, timeout=120)
 
-- 📖 **Official Developer Guide**: [https://guide.shanma.store/](https://guide.shanma.store/)
-- 🌐 **Codex SMS Platform**: [https://shanma.store/](https://shanma.store/)
-- 📑 **Best Practices**:
-  - [OpenAI Registration Phone Risk Assessment](https://guide.shanma.store/)
-  - [Global Carrier Line-Type (VoIP vs Real SIM) Routing](https://guide.shanma.store/)
+if sms:
+    print(f"Verification code: {sms.code}")
+else:
+    # Explicitly cancel to release number and trigger refund
+    client.cancel_order(order.activation_id)
+```
 
 ---
 
 ## Running Tests
+
+Run the test suite directly with standard `unittest`:
 
 ```bash
 python -m unittest discover tests
@@ -100,9 +95,12 @@ python -m unittest discover tests
 
 ---
 
-## Contributing
+## Documentation & Community
 
-Contributions are welcome! Please open an issue or submit a pull request for bug fixes, documentation improvements, or additional client features.
+- Technical Guides & API Reference: [https://guide.shanma.store/](https://guide.shanma.store/)
+- Web Platform: [https://shanma.store/](https://shanma.store/)
+
+---
 
 ## License
 

@@ -31,3 +31,8 @@ class UpstreamCarrierError(ShanmaError):
 class NumberUnavailableError(ShanmaError):
     """Raised when no numbers are available for the requested service/country."""
     pass
+
+
+class ActivationNotFoundError(ShanmaError):
+    """Raised when the specified activation ID is not found or has expired."""
+    pass
