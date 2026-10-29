@@ -1,5 +1,5 @@
 """
-Codex SMS (ShanMa) Python SDK - Quickstart Example (v0.2.0)
+Codex SMS Python SDK - Quickstart Example (v0.2.0)
 Demonstrates ordering a virtual phone number, context manager, and error handling.
 """
 

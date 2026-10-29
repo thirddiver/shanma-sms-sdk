@@ -1,5 +1,5 @@
 """
-Codex SMS (ShanMa) Python SDK
+Codex SMS Python SDK
 Official client library for Codex SMS verification and virtual phone number services.
 """
 

@@ -1,5 +1,5 @@
 """
-ShanMa SMS API Client.
+Codex SMS API Client.
 """
 
 import time
@@ -144,7 +144,7 @@ class ActivationContext:
 
 class ShanmaClient:
     """
-    Client for interacting with Codex SMS (ShanMa) verification service.
+    Client for interacting with Codex SMS verification service.
     
     Example:
         >>> client = ShanmaClient(api_key="your_api_key")
@@ -164,7 +164,7 @@ class ShanmaClient:
             raise AuthenticationError("API key is required to initialize ShanmaClient.")
 
     def _request(self, endpoint: str, params: Optional[Dict[str, Any]] = None, method: str = "GET") -> Dict[str, Any]:
-        """Make an authenticated HTTP request to ShanMa API."""
+        """Make an authenticated HTTP request to Codex SMS API."""
         query_params = {"token": self.api_key}
         if params:
             query_params.update(params)

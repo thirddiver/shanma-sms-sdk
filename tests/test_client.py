@@ -1,5 +1,5 @@
 """
-Unit tests for Codex SMS (ShanMa) Python SDK v0.2.0.
+Unit tests for Codex SMS Python SDK v0.2.0.
 """
 
 import unittest

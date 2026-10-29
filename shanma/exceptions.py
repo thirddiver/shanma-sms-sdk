@@ -1,10 +1,10 @@
 """
-ShanMa SMS SDK - Exception Hierarchy
+Codex SMS SDK - Exception Hierarchy
 """
 
 
 class ShanmaError(Exception):
-    """Base exception for all ShanMa SMS SDK errors."""
+    """Base exception for all Codex SMS SDK errors."""
     pass
 
 
