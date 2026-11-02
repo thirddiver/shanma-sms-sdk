@@ -1,5 +1,5 @@
 """
-Unit tests for Codex SMS Python SDK v0.2.0.
+Unit tests for Codex SMS Python SDK v0.3.0.
 """
 
 import unittest
@@ -7,40 +7,52 @@ from unittest.mock import patch, MagicMock
 import json
 import sys
 import os
+import urllib.error
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from shanma import (
-    ShanmaClient,
     CodexSmsClient,
+    ShanmaClient,
     ActivationContext,
     OrderResult,
     SmsResult,
     normalize_service,
     ShanmaError,
     AuthenticationError,
-    InsufficientBalanceError,
-    UpstreamCarrierError,
+    RateLimitError,
+    CdkAlreadyUsedError,
+    ActivationNotFoundError,
     NumberUnavailableError,
 )
 
 
-class TestShanmaClient(unittest.TestCase):
+class TestCodexSmsClient(unittest.TestCase):
 
     def test_brand_alias(self):
-        """Test that CodexSmsClient is an alias for ShanmaClient."""
-        self.assertIs(CodexSmsClient, ShanmaClient)
-        client = CodexSmsClient(api_key="test_token")
-        self.assertIsInstance(client, ShanmaClient)
-        self.assertEqual(client.VERSION, "0.2.0")
+        """Test that ShanmaClient is an alias for CodexSmsClient."""
+        self.assertIs(ShanmaClient, CodexSmsClient)
+        client = CodexSmsClient(cdkey="test_cdk")
+        self.assertIsInstance(client, CodexSmsClient)
+        self.assertEqual(client.VERSION, "0.3.0")
+        self.assertEqual(client.cdkey, "test_cdk")
+        self.assertEqual(client.api_key, "test_cdk")
 
     def test_init_without_key_raises_error(self):
-        """Test initialization without API key raises AuthenticationError."""
+        """Test initialization without CDK raises AuthenticationError."""
         with self.assertRaises(AuthenticationError):
-            ShanmaClient(api_key="")
+            CodexSmsClient(cdkey="")
 
         with self.assertRaises(AuthenticationError):
-            ShanmaClient(api_key="   ")
+            CodexSmsClient(cdkey="   ")
+
+        with self.assertRaises(AuthenticationError):
+            CodexSmsClient(api_key="")
+
+    def test_init_with_api_key_alias(self):
+        """Test backwards compatibility for initializing with api_key argument."""
+        client = CodexSmsClient(api_key="cdk_via_api_key")
+        self.assertEqual(client.cdkey, "cdk_via_api_key")
 
     def test_normalize_service(self):
         """Test service aliases normalization."""
@@ -53,110 +65,115 @@ class TestShanmaClient(unittest.TestCase):
         self.assertEqual(normalize_service("mm"), "microsoft")
         self.assertEqual(normalize_service("x"), "twitter")
         self.assertEqual(normalize_service("custom_unknown_svc"), "custom_unknown_svc")
+        self.assertIsNone(normalize_service(None))
 
     @patch("urllib.request.urlopen")
-    def test_get_balance(self, mock_urlopen):
-        """Test retrieving balance."""
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({"balance": 45.50}).encode("utf-8")
-        mock_urlopen.return_value.__enter__.return_value = mock_response
-
-        client = ShanmaClient(api_key="mock_key")
-        balance = client.get_balance()
-        self.assertEqual(balance, 45.50)
-
-    @patch("urllib.request.urlopen")
-    def test_order_number_success(self, mock_urlopen):
-        """Test ordering a virtual number successfully with alias normalization."""
+    def test_redeem_success(self, mock_urlopen):
+        """Test redeeming a CDK allocates a phone number with Bearer auth."""
         mock_payload = {
-            "success": True,
-            "activation_id": "act_998822",
-            "phone_number": "+12025550199"
+            "code": "CDK_TEST_123",
+            "phone": "+12025550199",
+            "activation_id": "act_889900",
+            "service": "openai",
+            "country_name": "United States",
+            "can_resend": False,
         }
         mock_response = MagicMock()
         mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
-        client = ShanmaClient(api_key="mock_key")
-        # Pass alias 'chatgpt', should normalize to 'openai'
-        order = client.order_number(service="chatgpt", country="usa")
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
+        order = client.redeem(service="chatgpt")
 
         self.assertIsInstance(order, OrderResult)
-        self.assertEqual(order.activation_id, "act_998822")
         self.assertEqual(order.phone_number, "+12025550199")
+        self.assertEqual(order.activation_id, "act_889900")
         self.assertEqual(order.service, "openai")
-        self.assertEqual(order.country, "usa")
+        self.assertEqual(order.country, "United States")
+
+        # Verify HTTP request headers
+        args, kwargs = mock_urlopen.call_args
+        req = args[0]
+        self.assertEqual(req.full_url, "https://shanma.store/api/guest/cdkeys/redeem")
+        self.assertEqual(req.headers.get("Authorization"), "Bearer CDK_TEST_123")
+        self.assertEqual(req.headers.get("Content-type"), "application/json")
+        sent_body = json.loads(req.data.decode("utf-8"))
+        self.assertEqual(sent_body.get("service"), "openai")
 
     @patch("urllib.request.urlopen")
-    def test_order_number_insufficient_balance(self, mock_urlopen):
-        """Test ordering a virtual number when balance is insufficient."""
+    def test_get_status(self, mock_urlopen):
+        """Test retrieving CDK status without consuming operations."""
         mock_payload = {
-            "success": False,
-            "message": "Insufficient balance. Please recharge."
+            "code": "CDK_TEST_123",
+            "status": "bound",
+            "phone": "+12025550199",
+            "activation_id": "act_889900",
+            "service": "openai",
         }
         mock_response = MagicMock()
         mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
-        client = ShanmaClient(api_key="mock_key")
-        with self.assertRaises(InsufficientBalanceError):
-            client.order_number(service="openai", country="usa")
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
+        status = client.get_status()
+        self.assertEqual(status["status"], "bound")
+        self.assertEqual(status["phone"], "+12025550199")
 
     @patch("urllib.request.urlopen")
-    def test_order_number_out_of_stock(self, mock_urlopen):
-        """Test ordering when no numbers are available."""
-        mock_payload = {
-            "success": False,
-            "message": "Out of stock. No numbers available."
-        }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+    def test_query_sms_waiting_and_received(self, mock_urlopen):
+        """Test querying SMS during waiting and after received."""
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
 
-        client = ShanmaClient(api_key="mock_key")
-        with self.assertRaises(NumberUnavailableError):
-            client.order_number(service="openai", country="usa")
+        # Case 1: Still waiting
+        mock_waiting = MagicMock()
+        mock_waiting.read.return_value = json.dumps({"status": "waiting"}).encode("utf-8")
+        mock_urlopen.return_value.__enter__.return_value = mock_waiting
+        res_waiting = client.query_sms()
+        self.assertIsNone(res_waiting)
 
-    @patch("urllib.request.urlopen")
-    def test_query_sms_received(self, mock_urlopen):
-        """Test querying SMS when code has arrived."""
-        mock_payload = {
+        # Case 2: Code received
+        mock_received = MagicMock()
+        mock_received.read.return_value = json.dumps({
             "status": "received",
-            "sms_code": "847291",
-            "sms_text": "Your verification code is 847291."
+            "code": "654321",
+            "text": "Your OpenAI verification code is 654321.",
+        }).encode("utf-8")
+        mock_urlopen.return_value.__enter__.return_value = mock_received
+        res_received = client.query_sms()
+        self.assertIsInstance(res_received, SmsResult)
+        self.assertEqual(res_received.code, "654321")
+        self.assertIn("654321", res_received.full_text)
+
+    @patch("urllib.request.urlopen")
+    def test_switch_phone(self, mock_urlopen):
+        """Test switching phone number if banned or unreceived."""
+        mock_payload = {
+            "code": "CDK_TEST_123",
+            "phone": "+447911123456",
+            "activation_id": "act_new_99",
+            "service": "openai",
+            "country_name": "United Kingdom",
         }
         mock_response = MagicMock()
         mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
-        client = ShanmaClient(api_key="mock_key")
-        res = client.query_sms("act_998822")
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
+        new_order = client.switch_phone()
 
-        self.assertIsNotNone(res)
-        self.assertEqual(res.code, "847291")
-        self.assertIn("847291", res.full_text)
-
-    @patch("urllib.request.urlopen")
-    def test_cancel_order(self, mock_urlopen):
-        """Test cancelling an order."""
-        mock_payload = {"success": True}
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
-        mock_urlopen.return_value.__enter__.return_value = mock_response
-
-        client = ShanmaClient(api_key="mock_key")
-        ok = client.cancel_order("act_998822")
-        self.assertTrue(ok)
+        self.assertIsInstance(new_order, OrderResult)
+        self.assertEqual(new_order.phone_number, "+447911123456")
+        self.assertEqual(new_order.activation_id, "act_new_99")
+        self.assertEqual(new_order.country, "United Kingdom")
 
     @patch("urllib.request.urlopen")
     def test_wait_for_sms_with_callback(self, mock_urlopen):
         """Test wait_for_sms with on_poll callback."""
         mock_response = MagicMock()
-        # Returns SMS on first attempt
         mock_response.read.return_value = json.dumps({
             "status": "received",
-            "sms_code": "123456",
-            "sms_text": "Code: 123456"
+            "code": "999888",
+            "text": "Code: 999888",
         }).encode("utf-8")
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
@@ -164,32 +181,95 @@ class TestShanmaClient(unittest.TestCase):
         def poll_callback(attempt, elapsed):
             polls.append((attempt, elapsed))
 
-        client = ShanmaClient(api_key="mock_key")
-        res = client.wait_for_sms("act_998822", timeout=10, interval=1, on_poll=poll_callback)
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
+        res = client.wait_for_sms(timeout=10, interval=4, on_poll=poll_callback)
         self.assertIsNotNone(res)
-        self.assertEqual(res.code, "123456")
+        self.assertEqual(res.code, "999888")
         self.assertEqual(len(polls), 1)
 
-    @patch.object(ShanmaClient, "cancel_order")
-    @patch.object(ShanmaClient, "order_number")
-    def test_activation_context_auto_cancel_on_no_sms(self, mock_order, mock_cancel):
-        """Test that ActivationContext auto-cancels order if no SMS is received."""
-        mock_order.return_value = OrderResult(
+    @patch("urllib.request.urlopen")
+    def test_http_error_mappings(self, mock_urlopen):
+        """Test accurate HTTP error translation to typed exceptions."""
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
+
+        # 401 / 403 AuthenticationError
+        err_401 = urllib.error.HTTPError(
+            url="https://shanma.store/api/guest/cdkeys/redeem",
+            code=401,
+            msg="Unauthorized",
+            hdrs={},
+            fp=MagicMock(read=lambda: b'{"detail":"Invalid CDK"}')
+        )
+        mock_urlopen.side_effect = err_401
+        with self.assertRaises(AuthenticationError):
+            client.redeem()
+
+        # 404 ActivationNotFoundError
+        err_404 = urllib.error.HTTPError(
+            url="https://shanma.store/api/guest/cdkeys/status",
+            code=404,
+            msg="Not Found",
+            hdrs={},
+            fp=MagicMock(read=lambda: b'{"detail":"CDK not found"}')
+        )
+        mock_urlopen.side_effect = err_404
+        with self.assertRaises(ActivationNotFoundError):
+            client.get_status()
+
+        # 410 CdkAlreadyUsedError
+        err_410 = urllib.error.HTTPError(
+            url="https://shanma.store/api/guest/cdkeys/redeem",
+            code=410,
+            msg="Gone",
+            hdrs={},
+            fp=MagicMock(read=lambda: b'{"detail":"CDK already used"}')
+        )
+        mock_urlopen.side_effect = err_410
+        with self.assertRaises(CdkAlreadyUsedError):
+            client.redeem()
+
+        # 429 RateLimitError
+        err_429 = urllib.error.HTTPError(
+            url="https://shanma.store/api/guest/cdkeys/sms",
+            code=429,
+            msg="Too Many Requests",
+            hdrs={},
+            fp=MagicMock(read=lambda: b'{"detail":"Rate limit exceeded"}')
+        )
+        mock_urlopen.side_effect = err_429
+        with self.assertRaises(RateLimitError):
+            client.query_sms()
+
+    @patch.object(CodexSmsClient, "switch_phone")
+    @patch.object(CodexSmsClient, "redeem")
+    def test_activation_context_manager(self, mock_redeem, mock_switch):
+        """Test ActivationContext manager lifecycle and switch functionality."""
+        mock_redeem.return_value = OrderResult(
             activation_id="act_ctx_1",
-            phone_number="+10000000",
+            phone_number="+12025550199",
             service="openai",
-            country="usa",
+            country="United States",
             raw={}
         )
-        mock_cancel.return_value = True
+        mock_switch.return_value = OrderResult(
+            activation_id="act_ctx_2",
+            phone_number="+447911123456",
+            service="openai",
+            country="United Kingdom",
+            raw={}
+        )
 
-        client = ShanmaClient(api_key="mock_key")
-        with patch.object(ShanmaClient, "wait_for_sms", return_value=None):
-            with client.activation(service="openai", country="usa", auto_cancel=True) as act:
-                sms = act.wait_for_sms(timeout=1)
-                self.assertIsNone(sms)
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
+        with client.activation(service="chatgpt") as act:
+            self.assertEqual(act.phone_number, "+12025550199")
+            self.assertEqual(act.activation_id, "act_ctx_1")
 
-        mock_cancel.assert_called_once_with("act_ctx_1")
+            new_order = act.switch()
+            self.assertEqual(act.phone_number, "+447911123456")
+            self.assertEqual(act.activation_id, "act_ctx_2")
+
+        mock_redeem.assert_called_once_with(service="chatgpt")
+        mock_switch.assert_called_once()
 
 
 if __name__ == "__main__":

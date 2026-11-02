@@ -9,12 +9,22 @@ class ShanmaError(Exception):
 
 
 class AuthenticationError(ShanmaError):
-    """Raised when API authentication fails (invalid API key or unauthorized)."""
+    """Raised when API authentication fails (invalid CDK or unauthorized)."""
     pass
 
 
-class InsufficientBalanceError(ShanmaError):
-    """Raised when account balance is insufficient to place an order."""
+class RateLimitError(ShanmaError):
+    """Raised when API rate limit (per-IP or per-CDK) is exceeded (HTTP 429)."""
+    pass
+
+
+class CdkAlreadyUsedError(ShanmaError):
+    """Raised when CDK has already been redeemed or expired (HTTP 410)."""
+    pass
+
+
+class ActivationNotFoundError(ShanmaError):
+    """Raised when the specified CDK or activation ID is not found (HTTP 404)."""
     pass
 
 
@@ -33,6 +43,6 @@ class NumberUnavailableError(ShanmaError):
     pass
 
 
-class ActivationNotFoundError(ShanmaError):
-    """Raised when the specified activation ID is not found or has expired."""
+class InsufficientBalanceError(ShanmaError):
+    """Raised when account balance or credits are insufficient."""
     pass

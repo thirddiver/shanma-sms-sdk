@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="shanma-sms-sdk",
-    version="0.2.0",
-    description="Experimental Python client for a draft Codex SMS API (not publicly available)",
+    version="0.3.0",
+    description="Official Python SDK for Codex SMS verification and virtual phone number services (https://shanma.store)",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     author="Codex SMS",
@@ -17,8 +17,13 @@ setup(
     packages=find_packages(),
     python_requires=">=3.8",
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha",
+        "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Topic :: Communications :: Telephony",
