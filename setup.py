@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="shanma-sms-sdk",
-    version="0.3.0",
-    description="Official Python SDK for Codex SMS verification and virtual phone number services (https://shanma.store)",
+    version="0.3.1",
+    description="Official Python SDK for Codex SMS verification and overseas mobile number services (https://shanma.store)",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     author="Codex SMS",

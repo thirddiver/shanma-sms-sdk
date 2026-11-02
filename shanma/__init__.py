@@ -1,6 +1,6 @@
 """
 Codex SMS Python SDK
-Official client library for Codex SMS verification and virtual phone number services (https://shanma.store).
+Official client library for Codex SMS verification and overseas mobile number services (https://shanma.store).
 """
 
 from .client import (
@@ -13,6 +13,7 @@ from .client import (
     SERVICE_ALIASES,
 )
 from .exceptions import (
+    CodexSmsError,
     ShanmaError,
     AuthenticationError,
     RateLimitError,
@@ -24,7 +25,7 @@ from .exceptions import (
     InsufficientBalanceError,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __all__ = [
     "CodexSmsClient",
     "ShanmaClient",
@@ -33,6 +34,7 @@ __all__ = [
     "SmsResult",
     "normalize_service",
     "SERVICE_ALIASES",
+    "CodexSmsError",
     "ShanmaError",
     "AuthenticationError",
     "RateLimitError",

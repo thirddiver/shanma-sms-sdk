@@ -1,5 +1,5 @@
 """
-Unit tests for Codex SMS Python SDK v0.3.0.
+Unit tests for Codex SMS Python SDK v0.3.1.
 """
 
 import unittest
@@ -18,6 +18,7 @@ from shanma import (
     OrderResult,
     SmsResult,
     normalize_service,
+    CodexSmsError,
     ShanmaError,
     AuthenticationError,
     RateLimitError,
@@ -30,11 +31,12 @@ from shanma import (
 class TestCodexSmsClient(unittest.TestCase):
 
     def test_brand_alias(self):
-        """Test that ShanmaClient is an alias for CodexSmsClient."""
+        """Test that ShanmaClient is an alias for CodexSmsClient and CodexSmsError is ShanmaError."""
         self.assertIs(ShanmaClient, CodexSmsClient)
+        self.assertIs(CodexSmsError, ShanmaError)
         client = CodexSmsClient(cdkey="test_cdk")
         self.assertIsInstance(client, CodexSmsClient)
-        self.assertEqual(client.VERSION, "0.3.0")
+        self.assertEqual(client.VERSION, "0.3.1")
         self.assertEqual(client.cdkey, "test_cdk")
         self.assertEqual(client.api_key, "test_cdk")
 
@@ -69,7 +71,7 @@ class TestCodexSmsClient(unittest.TestCase):
 
     @patch("urllib.request.urlopen")
     def test_redeem_success(self, mock_urlopen):
-        """Test redeeming a CDK allocates a phone number with Bearer auth."""
+        """Test redeeming a CDK allocates a phone number with Bearer auth and strict empty body."""
         mock_payload = {
             "code": "CDK_TEST_123",
             "phone": "+12025550199",
@@ -91,14 +93,14 @@ class TestCodexSmsClient(unittest.TestCase):
         self.assertEqual(order.service, "openai")
         self.assertEqual(order.country, "United States")
 
-        # Verify HTTP request headers
+        # Verify HTTP request headers & wire protocol conformance: body must be {} (extra=forbid in backend)
         args, kwargs = mock_urlopen.call_args
         req = args[0]
         self.assertEqual(req.full_url, "https://shanma.store/api/guest/cdkeys/redeem")
         self.assertEqual(req.headers.get("Authorization"), "Bearer CDK_TEST_123")
         self.assertEqual(req.headers.get("Content-type"), "application/json")
         sent_body = json.loads(req.data.decode("utf-8"))
-        self.assertEqual(sent_body.get("service"), "openai")
+        self.assertEqual(sent_body, {})
 
     @patch("urllib.request.urlopen")
     def test_get_status(self, mock_urlopen):

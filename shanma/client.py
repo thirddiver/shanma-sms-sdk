@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from .exceptions import (
     ShanmaError,
+    CodexSmsError,
     AuthenticationError,
     RateLimitError,
     CdkAlreadyUsedError,
@@ -70,7 +71,7 @@ def normalize_service(service: Optional[str]) -> Optional[str]:
 
 @dataclass
 class OrderResult:
-    """Represents an allocated virtual phone number reservation."""
+    """Represents an allocated overseas mobile number reservation."""
     activation_id: str
     phone_number: str
     service: str
@@ -88,7 +89,7 @@ class SmsResult:
 
 class ActivationContext:
     """
-    Pythonic Context Manager for ordering virtual numbers and polling SMS codes.
+    Pythonic Context Manager for ordering overseas numbers and polling SMS codes.
 
     Example:
         >>> with client.activation(service="chatgpt") as act:
@@ -179,7 +180,7 @@ class CodexSmsClient:
     """
 
     DEFAULT_BASE_URL = "https://shanma.store"
-    VERSION = "0.3.0"
+    VERSION = "0.3.1"
 
     def __init__(
         self,
@@ -196,7 +197,7 @@ class CodexSmsClient:
         if not self.cdkey:
             raise AuthenticationError(
                 "A valid CDK (or api_key) is required to initialize CodexSmsClient. "
-                "Get your CDK at https://shanma.store"
+                "Get your CDK instantly via Alipay at https://shanma.store"
             )
 
     @property
@@ -215,7 +216,7 @@ class CodexSmsClient:
         Uses Bearer CDK authentication against /api/guest/cdkeys/*.
         """
         url = f"{self.base_url}{endpoint}"
-        payload_bytes = json.dumps(data or {}).encode("utf-8")
+        payload_bytes = json.dumps(data if data is not None else {}).encode("utf-8")
 
         headers = {
             "Authorization": f"Bearer {self.cdkey}",
@@ -252,23 +253,24 @@ class CodexSmsClient:
                 raise CdkAlreadyUsedError(f"CDK has already been used or expired (HTTP 410): {detail}")
             if e.code == 429:
                 raise RateLimitError(f"API rate limit exceeded (HTTP 429): {detail}")
-            raise ShanmaError(f"HTTP {e.code} error on {endpoint}: {detail}")
+            raise CodexSmsError(f"HTTP {e.code} error on {endpoint}: {detail}")
         except Exception as e:
-            raise ShanmaError(f"Connection error to {url}: {e}")
+            raise CodexSmsError(f"Connection error to {url}: {e}")
 
     def redeem(self, service: Optional[str] = None) -> OrderResult:
         """
-        Redeem the CDK and allocate a temporary virtual phone number.
-        
-        Args:
-            service: Optional service name or alias (e.g. 'chatgpt', 'openai', 'tg', 'go').
+        Redeem the CDK and allocate an overseas mobile number.
+
+        Note:
+            In the Codex SMS system, the target service is bound when the CDK is purchased
+            (e.g. OpenAI, Telegram, Google). The backend endpoint `/api/guest/cdkeys/redeem`
+            requires an empty body `{}` (extra fields are rejected by the server schema).
+            The `service` argument is accepted for client-side DX and logging.
         """
         canonical_service = normalize_service(service)
-        payload = {}
-        if canonical_service:
-            payload["service"] = canonical_service
 
-        res = self._request("/api/guest/cdkeys/redeem", data=payload, method="POST")
+        # Wire protocol: GuestCdkeyActionRequest strictly expects empty JSON object {}
+        res = self._request("/api/guest/cdkeys/redeem", data={}, method="POST")
 
         phone = str(res.get("phone") or res.get("phone_number") or "")
         activation_id = str(res.get("activation_id") or "")
@@ -328,10 +330,10 @@ class CodexSmsClient:
         Args:
             activation_id: Optional ID for interface compatibility.
             timeout: Maximum seconds to wait (default: 180s).
-            interval: Polling frequency in seconds (default: 5s, min: 4s to prevent 429).
+            interval: Polling frequency in seconds (default: 5s, clamped to min 4s to prevent 429).
             on_poll: Optional callback invoked on each poll attempt: callback(attempt, elapsed_seconds).
         """
-        # Ensure polling interval respects upstream rate limit (15 requests/min per CDK)
+        # Enforce rate limit protection: max 15 requests/min per CDK
         interval = max(interval, 4)
         start_time = time.time()
         attempt = 0
@@ -354,7 +356,7 @@ class CodexSmsClient:
 
     def switch_phone(self) -> OrderResult:
         """
-        Request a free replacement phone number if the current number is banned or did not receive an SMS.
+        Request a free replacement phone number if the current number did not receive an SMS.
         """
         res = self._request("/api/guest/cdkeys/switch", data={}, method="POST")
         phone = str(res.get("phone") or res.get("phone_number") or "")
@@ -381,7 +383,6 @@ class CodexSmsClient:
         Graceful cancellation helper for backwards compatibility.
         """
         try:
-            # Under single-use CDK, unreceived orders automatically expire and remain reusable
             return True
         except Exception:
             return False
