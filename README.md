@@ -187,6 +187,24 @@ python -m unittest discover tests
 
 ---
 
+## Developer Verification Guides & Troubleshooting
+
+For step-by-step carrier bypass instructions, VoIP error troubleshooting, and native SIM allocation guides, refer to our comprehensive technical documentation:
+
+| Service / Topic | Technical Troubleshooting Guide | Key Focus |
+|---|---|---|
+| **OpenAI / ChatGPT / Sora** | [OpenAI SMS Verification & VoIP Rejection Solutions](https://guide.shanma.store/news/openai-sms-verification.html) | Fix "Your phone number was flagged as VoIP" & Unsupported region errors |
+| **Claude 3.7 / Sonnet** | [Claude Phone Verification & Registration Guide](https://guide.shanma.store/news/claude-phone-verification.html) | Non-VoIP native SIM bypass for Anthropic Claude registration |
+| **Cursor & Windsurf AI** | [Cursor & Windsurf IDE Phone Verification Guide](https://guide.shanma.store/news/cursor-windsurf-claude-phone-verification-guide.html) | Developer IDE phone activation & environment setup |
+| **ChatGPT Registration Truth** | [ChatGPT Register Without Phone Number Myth](https://guide.shanma.store/news/chatgpt-register-no-phone-myth.html) | Deep dive into OpenAI's mandatory telecom KYC requirements |
+| **Platform Comparison 2026** | [Global SMS Verification Platforms Comparison (2026)](https://guide.shanma.store/news/sms-platform-comparison-2026.html) | Benchmark Codex SMS vs 5sim, SMS-Activate, HeroSMS |
+| **OpenAI API Key Auth** | [OpenAI API First Key Phone Verification Guide](https://guide.shanma.store/news/openai-api-registration-phone.html) | Enterprise developer API key verification without subscription |
+| **Google / Gmail / GV** | [Google Account Phone Verification & Flag Removal](https://guide.shanma.store/news/google-account-phone-verification.html) | Avoid carrier suspension on Gmail & Google Voice |
+| **giffgaff UK Physical SIM** | [giffgaff UK SIM Activation & Keep-Alive Guide](https://guide.shanma.store/news/giffgaff-activation-china-guide.html) | Long-term UK physical number retention for global developers |
+| **Telegram App Verification** | [Telegram Ban Appeal & Phone Verification](https://guide.shanma.store/news/telegram-ban-appeal.html) | Bypass SMS timeout and carrier blocks on Telegram |
+
+---
+
 ## Links & Resources
 
 - Official Service: [shanma.store](https://shanma.store/)
