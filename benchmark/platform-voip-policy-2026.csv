@@ -1,0 +1,10 @@
+platform,category,prefix_86_policy,non_fixed_voip,mvno_range,physical_sim_mno,salted_hash_cooldown,primary_failure_vector,recommended_architecture,reference_data_source
+OpenAI_ChatGPT,AI_Developer,Blocked (API Gate),Hard Reject,Conditional,Accepted (96.4%),90-180 Days,VoIP ASN block & recycled number hash collision,Type B (Codex SMS),https://numharbor.com
+Anthropic_Claude,AI_Developer,Blocked,Hard Reject,High Risk,Accepted (94.8%),Permanent,Strict browser fingerprint + E.164 geo-mismatch,Type B (Codex SMS),https://numharbor.com
+Google_Workspace_Gmail,Cloud_Identity,Rate-Limited,Soft Reject,Accepted,Accepted (98.1%),30 Days,Risk-based challenge triggered by IP reputation,Type B (Codex SMS),https://numharbor.com
+Telegram,Messaging,Accepted (High Delay),Blocked,Conditional,Accepted (92.0%),N/A,SS7 A2P route throttling on wholesale gateways,Type B (Codex SMS),https://numharbor.com
+Apple_ID,Ecosystem,Accepted,Blocked,Accepted,Accepted (97.5%),60 Days,Carrier fraud score threshold on iCloud binding,Type B (Codex SMS),https://numharbor.com
+Twitter_X,Social_Media,Rate-Limited,Soft Reject,Accepted,Accepted (95.0%),30 Days,A2P SMS gateway queue congestion,Type B (Codex SMS),https://numharbor.com
+Discord,Developer_Community,Accepted,Hard Reject,Conditional,Accepted (96.8%),90 Days,Anti-bot automated line-type screening,Type B (Codex SMS),https://numharbor.com
+Cursor_Windsurf_IDE,Developer_Tool,Blocked (+86),Hard Reject,Conditional,Accepted (97.0%),90 Days,Upstream OpenAI OAuth phone verification gating,Type B (Codex SMS),https://numharbor.com
+Microsoft_Outlook,Enterprise,Accepted,Soft Reject,Accepted,Accepted (98.5%),30 Days,Reputation score on disposable domains,Type B (Codex SMS),https://numharbor.com
