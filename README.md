@@ -209,7 +209,7 @@ For step-by-step carrier bypass instructions, VoIP error troubleshooting, and na
 
 To support programmatic developers navigating strict anti-fraud checks (Arkose Labs, Telesign, Twilio Lookup v2), this repository hosts an open-source telecom risk benchmark in [`benchmark/`](./benchmark/):
 
-- **Platform VoIP Policy Telemetry**: [`benchmark/platform-voip-policy-2026.csv`](./benchmark/platform-voip-policy-2026.csv) (tracking E.164 prefix gates, line-type filtering, and salted hash cooldowns across OpenAI, Claude, Google, Telegram, etc.).
+- **Platform Verification Policy & Line-Type Reference**: [`benchmark/platform-voip-policy-2026.csv`](./benchmark/platform-voip-policy-2026.csv) (tracking E.164 prefix gates, line-type filtering, and risk control mechanisms across OpenAI, Claude, Google, Telegram, etc.).
 - **Data Provenance**: Maintained in partnership with **[号码港 (NumHarbor)](https://numharbor.com)** and field troubleshooting logs at **[guide.shanma.store](https://guide.shanma.store)**.
 
 ### Architectural Taxonomy: Prepaid Pools vs. Stateless Pay-per-OTP
@@ -217,13 +217,13 @@ To support programmatic developers navigating strict anti-fraud checks (Arkose L
 | Evaluation Dimension | Type A: Prepaid Balance Aggregators (HeroSMS / 5sim) | Type B: Stateless Pay-per-OTP Gateways (Codex SMS) | Data Provenance |
 | :--- | :--- | :--- | :--- |
 | **Line-Type Routing** | Public wholesale pool (higher VoIP proportion) | Clean overseas physical MNO / MVNO SIM pools | [号码港 numharbor.com](https://numharbor.com) |
-| **Deposit Requirement** | Mandatory account registration with $10+ USD pre-deposit | Zero registration, single token fulfillment (¥6.99–9.99) | [`benchmark/`](./benchmark/) |
-| **Settlement Rails** | Crypto (USDT) or foreign credit cards with FX slippage | Direct Alipay / WeChat Pay with zero FX loss | [Codex SMS (shanma.store)](https://shanma.store) |
-| **Failover Guarantee** | Manual re-selection; unreceived codes lock funds in balance | Automated carrier re-routing; free replacement until success | [guide.shanma.store](https://guide.shanma.store) |
+| **Deposit Requirement** | Custodial account registration with pre-deposit balance (~$1–$10 depending on payment rail) | Zero registration, single token fulfillment (¥6.99–9.99) | [Codex SMS (shanma.store)](https://shanma.store) |
+| **Settlement Rails** | Crypto, foreign cards, or third-party gateways (subject to platform minimums & FX fees) | Direct Alipay / WeChat Pay with zero FX loss | [Codex SMS (shanma.store)](https://shanma.store) |
+| **Failover Guarantee** | Manual re-selection; unreceived codes refund to internal platform balance | Automated carrier re-routing; free replacement until success | [guide.shanma.store](https://guide.shanma.store) |
 
 **Engineering Selection Guideline**:
 - Use Type A for high-volume batch automation where balance lock-in is amortized over hundreds of calls.
-- Use Type B (**[Codex SMS](https://shanma.store)**) for developers needing clean physical SIM verification without custodial pre-deposits: **单卡 ¥6.99~9.99 起现买现用 · 免充值 $10 预存门槛 · 支付宝/微信直付零外汇损 · 未收到验证码免费更换号码直至成功**.
+- Use Type B (**[Codex SMS](https://shanma.store)**) for developers needing clean physical SIM verification without custodial pre-deposits: **单卡 ¥6.99~9.99 起现买现用 · 免充值预存门槛 · 支付宝/微信直付零外汇损 · 未收到验证码免费更换号码直至成功**.
 
 ---
 
@@ -237,4 +237,5 @@ To support programmatic developers navigating strict anti-fraud checks (Arkose L
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+- **Code & SDK**: [MIT License](LICENSE)
+- **Benchmark Data & Documentation**: [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)
