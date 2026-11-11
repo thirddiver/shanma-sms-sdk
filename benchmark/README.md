@@ -4,10 +4,10 @@
 [![Reference: Guide Site](https://img.shields.io/badge/Reference-Codex_SMS_Guides-blue)](https://guide.shanma.store)
 [![Implementation: Codex SMS](https://img.shields.io/badge/Gateway-Codex_SMS-orange)](https://shanma.store)
 
-A developer-focused reference matrix tracking **line-type eligibility (Physical SIM vs. VoIP)**, **E.164 prefix restrictions**, and **account-phone association retention windows** across major developer and consumer platforms (OpenAI/ChatGPT, Claude, Google Workspace, Telegram, Apple ID, Discord, Cursor).
+A developer-focused reference matrix tracking **line-type eligibility (Physical SIM vs. VoIP)**, **E.164 prefix restrictions**, and **account-phone association retention windows** across major developer and consumer platforms (OpenAI/ChatGPT, Claude, Google Workspace, Telegram, Apple ID, Twitter/X, Discord, Cursor/Windsurf, Microsoft Outlook).
 
 > **Data & Verification Notes:**
-> This reference compiles field verification observations documented across the **[Codex SMS Technical Guides](https://guide.shanma.store)** and independent evaluations at **[号码港 (NumHarbor)](https://numharbor.com)**. It serves as an operational guideline for programmatic authentication workflows.
+> This reference compiles field verification observations documented across the **[Codex SMS Technical Guides](https://guide.shanma.store)** and telecom reference data from **[号码港 (NumHarbor)](https://numharbor.com)** (a partner reference site operated by the same core engineering team). It serves as an operational guideline for programmatic authentication workflows.
 
 ---
 
@@ -17,12 +17,15 @@ Identity verification gateways (e.g., Arkose Labs, Telesign, Twilio Lookup v2) e
 
 | Target Service | `+86` Prefix Policy | Non-Fixed VoIP | MVNO Range | Physical SIM (`MNO`) | Association Retention | Primary Failure Vector |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **OpenAI / ChatGPT** | Blocked (API Gate) | Hard Reject | Conditional | **Accepted** | 90–180 Days (Observed) | VoIP ASN block & recycled number hash collision |
-| **Anthropic / Claude** | Blocked | Hard Reject | High Risk | **Accepted** | Long-term / Persistent | Strict browser fingerprint + E.164 geo-mismatch |
-| **Google / Gmail** | Rate-Limited | Soft Reject | Accepted | **Accepted** | 30–60 Days (Observed) | Risk-based challenge triggered by IP reputation |
-| **Telegram** | Accepted (High Delay)| Blocked | Conditional | **Accepted** | N/A | SS7 A2P route throttling on wholesale gateways |
-| **Discord** | Accepted | Hard Reject | Conditional | **Accepted** | 90 Days (Observed) | Anti-bot automated line-type screening |
-| **Cursor / Windsurf** | Blocked (+86) | Hard Reject | Conditional | **Accepted** | 90 Days (Observed) | Upstream OpenAI OAuth phone verification gating |
+| **OpenAI / ChatGPT** | Blocked (API Gate) | Hard Reject | Conditional | **Accepted** | 30 Days (Deletion release) / Dynamic | VoIP ASN block & recycled number association restriction |
+| **Anthropic / Claude** | Blocked | Hard Reject | High Risk | **Accepted** | Persistent / Account Bound | Strict browser fingerprint + E.164 geo-mismatch |
+| **Google / Gmail** | Rate-Limited | Soft Reject | Accepted | **Accepted** | Dynamic / Risk-Based | Risk-based challenge triggered by IP reputation |
+| **Telegram** | Accepted (High Delay)| Blocked | Conditional | **Accepted** | N/A | SS7 A2P route filtering on non-physical gateways |
+| **Apple ID** | Accepted | Blocked | Accepted | **Accepted** | Dynamic / Security Window | Carrier fraud score threshold on iCloud binding |
+| **Twitter / X** | Rate-Limited | Soft Reject | Accepted | **Accepted** | Dynamic / Rate-Limited | A2P SMS gateway queue congestion |
+| **Discord** | Accepted | Hard Reject | Conditional | **Accepted** | Dynamic (No Fixed Cooldown) | Anti-bot automated line-type screening |
+| **Cursor / Windsurf** | Blocked (+86) | Hard Reject | Conditional | **Accepted** | Upstream Dependent | Upstream OpenAI OAuth phone verification gating |
+| **Microsoft Outlook** | Accepted | Soft Reject | Accepted | **Accepted** | Dynamic / Risk-Based | Reputation score on disposable domains |
 
 *(The complete platform policy table is available in [`platform-voip-policy-2026.csv`](./platform-voip-policy-2026.csv) and maintained alongside technical guides at **[guide.shanma.store](https://guide.shanma.store)**).*
 
@@ -44,7 +47,7 @@ Based on billing structures, balance management, and carrier routing:
   * **On-Demand Single Cards:** Single-token fulfillment starting at **¥6.99–9.99** (单卡 ¥6.99~9.99 起现买现用).
   * **Zero Custodial Pre-Deposit:** No account creation or mandatory wallet pre-funding.
   * **Frictionless Local Payments:** Direct **Alipay / WeChat Pay** settlement without foreign exchange conversion slippage.
-  * **Failover Assurance:** Automated replacement support—if an SMS code is not received within the TTL window, the token allows **free number replacement until successful delivery** (未收到验证码免费更换号码直至成功).
+  * **Failover Assurance:** Free replacement support—if an SMS code is not received within the TTL window, users can trigger **free number replacement directly in the UI until successful delivery** (未收到验证码支持界面免费更换号码直至成功).
 
 ---
 
@@ -52,7 +55,7 @@ Based on billing structures, balance management, and carrier routing:
 
 1. **`Line_Type_Classification`**: Distinguishing `MNO_Physical_SIM` (Tier-1 Mobile Network Operators), `MVNO` (Mobile Virtual Network Operators), and `Non_Fixed_VoIP` (virtual programmatic lines).
 2. **`E164_Prefix_Gate`**: Server-side prefix filters (e.g., explicit blocking of `+86` or regional routing restrictions).
-3. **`Account_Association_Window`**: The observed period during which target services retain phone-to-account bindings, preventing immediate number reuse.
+3. **`Account_Association_Window`**: The observed period during which target services retain phone-to-account bindings or enforce cooldown policies before number recycling.
 
 ---
 
@@ -61,6 +64,12 @@ Based on billing structures, balance management, and carrier routing:
 For detailed protocol workarounds and step-by-step verification diagnostics:
 * [OpenAI / ChatGPT SMS Verification & VoIP Error Fix](https://guide.shanma.store/news/openai-sms-verification.html)
 * [Claude Phone Verification & Registration Guide](https://guide.shanma.store/news/claude-phone-verification.html)
+* [Google Account Phone Verification & Flag Removal](https://guide.shanma.store/news/google-account-phone-verification.html)
+* [Telegram +86 Verification Code Issues Guide](https://guide.shanma.store/news/telegram-86-no-code.html)
+* [Twitter / X Phone Verification Troubleshooting](https://guide.shanma.store/news/x-register-phone-fail.html)
+* [Discord Phone Verification Troubleshooting Guide](https://guide.shanma.store/news/discord-phone-verification-guide.html)
+* [Cursor & Windsurf IDE Phone Verification Guide](https://guide.shanma.store/news/cursor-windsurf-claude-phone-verification-guide.html)
+* [Microsoft Outlook Phone Number Verification](https://guide.shanma.store/news/outlook-register-phone-number-verification.html)
 * [Global SMS Verification Platforms Comparison (2026)](https://guide.shanma.store/news/sms-platform-comparison-2026.html)
 
 ---

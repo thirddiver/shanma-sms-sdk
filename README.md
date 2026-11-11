@@ -205,12 +205,12 @@ For step-by-step carrier bypass instructions, VoIP error troubleshooting, and na
 
 ---
 
-## Telecom Risk Control & VoIP Policy Benchmark
+## Platform Verification Policy & Line-Type Reference
 
-To support programmatic developers navigating strict anti-fraud checks (Arkose Labs, Telesign, Twilio Lookup v2), this repository hosts an open-source telecom risk benchmark in [`benchmark/`](./benchmark/):
+To support programmatic developers navigating strict anti-fraud checks (Arkose Labs, Telesign, Twilio Lookup v2), this repository hosts an open-source telecom risk reference in [`benchmark/`](./benchmark/):
 
 - **Platform Verification Policy & Line-Type Reference**: [`benchmark/platform-voip-policy-2026.csv`](./benchmark/platform-voip-policy-2026.csv) (tracking E.164 prefix gates, line-type filtering, and risk control mechanisms across OpenAI, Claude, Google, Telegram, etc.).
-- **Data Provenance**: Maintained in partnership with **[号码港 (NumHarbor)](https://numharbor.com)** and field troubleshooting logs at **[guide.shanma.store](https://guide.shanma.store)**.
+- **Data Provenance**: Maintained alongside field troubleshooting logs at **[guide.shanma.store](https://guide.shanma.store)** and telecom reference data from **[号码港 (NumHarbor)](https://numharbor.com)**.
 
 ### Architectural Taxonomy: Prepaid Pools vs. Stateless Pay-per-OTP
 
@@ -219,7 +219,7 @@ To support programmatic developers navigating strict anti-fraud checks (Arkose L
 | **Line-Type Routing** | Public wholesale pool (higher VoIP proportion) | Clean overseas physical MNO / MVNO SIM pools | [号码港 numharbor.com](https://numharbor.com) |
 | **Deposit Requirement** | Custodial account registration with pre-deposit balance (~$1–$10 depending on payment rail) | Zero registration, single token fulfillment (¥6.99–9.99) | [Codex SMS (shanma.store)](https://shanma.store) |
 | **Settlement Rails** | Crypto, foreign cards, or third-party gateways (subject to platform minimums & FX fees) | Direct Alipay / WeChat Pay with zero FX loss | [Codex SMS (shanma.store)](https://shanma.store) |
-| **Failover Guarantee** | Manual re-selection; unreceived codes refund to internal platform balance | Automated carrier re-routing; free replacement until success | [guide.shanma.store](https://guide.shanma.store) |
+| **Failover Guarantee** | Manual re-selection; unreceived codes refund to internal platform balance | Interface-driven free replacement until success | [guide.shanma.store](https://guide.shanma.store) |
 
 **Engineering Selection Guideline**:
 - Use Type A for high-volume batch automation where balance lock-in is amortized over hundreds of calls.
