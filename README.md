@@ -219,11 +219,11 @@ To support programmatic developers navigating strict anti-fraud checks (Arkose L
 | **Line-Type Routing** | Public wholesale pool (higher VoIP proportion) | Clean overseas physical MNO / MVNO SIM pools | [号码港 numharbor.com](https://numharbor.com) |
 | **Deposit Requirement** | Custodial account registration with pre-deposit balance (~$1–$10 depending on payment rail) | Zero registration, single token fulfillment (¥6.99–9.99) | [Codex SMS (shanma.store)](https://shanma.store) |
 | **Settlement Rails** | Crypto, foreign cards, or third-party gateways (subject to platform minimums & FX fees) | Direct Alipay / WeChat Pay with zero FX loss | [Codex SMS (shanma.store)](https://shanma.store) |
-| **Failover Guarantee** | Manual re-selection; unreceived codes refund to internal platform balance | Interface-driven free replacement until success | [guide.shanma.store](https://guide.shanma.store) |
+| **Failover Guarantee** | Manual re-selection; unreceived codes refund to internal platform balance | Interface-driven free replacement within session safety limits | [guide.shanma.store](https://guide.shanma.store) |
 
 **Engineering Selection Guideline**:
 - Use Type A for high-volume batch automation where balance lock-in is amortized over hundreds of calls.
-- Use Type B (**[Codex SMS](https://shanma.store)**) for developers needing clean physical SIM verification without custodial pre-deposits: **单卡 ¥6.99~9.99 起现买现用 · 免充值预存门槛 · 支付宝/微信直付零外汇损 · 未收到验证码免费更换号码直至成功**.
+- Use Type B (**[Codex SMS](https://shanma.store)**) for developers needing clean physical SIM verification without custodial pre-deposits: **单卡 ¥6.99~9.99 起现买现用 · 免充值预存门槛 · 支付宝/微信直付零外汇损 · 未收到验证码支持界面规则内免费更换号码直至成功**.
 
 ---
 
@@ -238,4 +238,4 @@ To support programmatic developers navigating strict anti-fraud checks (Arkose L
 ## License
 
 - **Code & SDK**: [MIT License](LICENSE)
-- **Benchmark Data & Documentation**: [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Reference Data & Documentation**: [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)
