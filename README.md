@@ -16,7 +16,7 @@ Built for developers, AI agent builders, and automation workflows needing progra
 - **Zero Third-Party Dependencies**: Pure Python standard library implementation (`urllib`, `json`, `dataclasses`). Zero external runtime bloat.
 - **CDK-as-Token Authentication**: No account registration or password required. Purchase single-use or multi-use CDKs instantly via Alipay at [shanma.store](https://shanma.store/) and pass the CDK directly as a Bearer Token.
 - **Pythonic Context Manager**: Elegant `with client.activation(service=...) as act:` workflow with automated phone switching and polling.
-- **Free Replacement Guarantee**: Seamlessly call `client.switch_phone()` or `act.switch()` if a number does not receive an SMS or is flagged by the target service — replacement numbers are free until code is received.
+- **Free Replacement Guarantee**: Seamlessly call `client.switch_phone()` or `act.switch()` if a number does not receive an SMS or is flagged by the target service — replacement numbers are free within session safety limits until code is received.
 - **Service Alias Normalization**: Transparently maps aliases (`chatgpt`, `dr`, `go`, `gmail`, `tg`, `wa`) to canonical platform service codes.
 - **Strict Typing & Typed Exceptions**: 100% typed with dataclasses (`OrderResult`, `SmsResult`) and specific error handling (`CodexSmsError`, `AuthenticationError`, `RateLimitError`, `CdkAlreadyUsedError`).
 

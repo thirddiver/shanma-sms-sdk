@@ -4,7 +4,7 @@
 [![Reference: Guide Site](https://img.shields.io/badge/Reference-Codex_SMS_Guides-blue)](https://guide.shanma.store)
 [![Implementation: Codex SMS](https://img.shields.io/badge/Gateway-Codex_SMS-orange)](https://shanma.store)
 
-A developer-focused reference matrix tracking **line-type eligibility (Physical SIM vs. VoIP)**, **E.164 prefix restrictions**, and **account-phone association retention windows** across major developer and consumer platforms (OpenAI/ChatGPT, Claude, Google Workspace, Telegram, Apple ID, Twitter/X, Discord, Cursor/Windsurf, Microsoft Outlook).
+A developer-focused reference matrix tracking **line-type eligibility (Physical SIM vs. VoIP)**, **E.164 prefix restrictions**, and **account-phone association retention windows** across major developer and consumer platforms (OpenAI/ChatGPT, Claude, Google Workspace, Telegram, Twitter/X, Discord, Cursor/Windsurf, Microsoft Outlook).
 
 > **Data & Verification Notes:**
 > This reference compiles field verification observations documented across the **[Codex SMS Technical Guides](https://guide.shanma.store)** and telecom reference data from **[号码港 (NumHarbor)](https://numharbor.com)** (a partner reference site operated by the same core engineering team). It serves as an operational guideline for programmatic authentication workflows.
@@ -17,12 +17,11 @@ Identity verification gateways (e.g., Arkose Labs, Telesign, Twilio Lookup v2) e
 
 | Target Service | `+86` Prefix Policy | Non-Fixed VoIP | MVNO Range | Physical SIM (`MNO`) | Association Retention | Primary Failure Vector |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **OpenAI / ChatGPT** | Blocked (API Gate) | Hard Reject | Conditional | **Accepted** | 30 Days (Deletion release) / Unknown | VoIP ASN block & recycled number association restriction |
+| **OpenAI / ChatGPT** | Blocked (API Gate) | Hard Reject | Conditional | **Accepted** | 30 Days (Deletion release) / Unknown | VoIP line-type screening & recycled number association restriction |
 | **Anthropic / Claude** | Blocked | Hard Reject | High Risk | **Accepted** | Unknown (Account Bound Risk) | Strict browser fingerprint & E.164 geo-mismatch |
 | **Google / Gmail** | Rate-Limited | Soft Reject | Accepted | **Accepted** | Unknown (Dynamic Risk Policy) | Risk-based challenge triggered by IP & carrier reputation |
 | **Telegram** | Restricted (+86) / High Delay | Blocked | Conditional | **Accepted** | Unknown | International SMS interception & carrier gateway delay |
-| **Apple ID** | Accepted | Blocked | Accepted | **Accepted** | Unknown | Carrier fraud score & line-type screening |
-| **Twitter / X** | Rate-Limited | Soft Reject | Accepted | **Accepted** | Unknown (Rate-Limited) | SMS gateway queue congestion & carrier filtering |
+| **Twitter / X** | Rate-Limited | Soft Reject | Accepted | **Accepted** | Unknown (Rate-Limited) | Carrier SMS filtering & platform rate limiting |
 | **Discord** | Accepted | Hard Reject | Conditional | **Accepted** | Unknown (Lockout Cooldown Risk) | Anti-bot automated line-type screening |
 | **Cursor / Windsurf** | Blocked (+86) | Hard Reject | Conditional | **Accepted** | Unknown (Upstream Dependent) | Multi-provider OAuth & upstream phone verification gating |
 | **Microsoft Outlook** | Accepted | Soft Reject | Accepted | **Accepted** | Unknown (Dynamic Risk Policy) | IP and phone number risk reputation score |
@@ -71,7 +70,6 @@ For detailed protocol workarounds and step-by-step verification diagnostics:
 * [Cursor & Windsurf IDE Phone Verification Guide](https://guide.shanma.store/news/cursor-windsurf-claude-phone-verification-guide.html)
 * [Microsoft Outlook Phone Number Verification](https://guide.shanma.store/news/outlook-register-phone-number-verification.html)
 * [Global SMS Verification Platforms Comparison (2026)](https://guide.shanma.store/news/sms-platform-comparison-2026.html)
-* [号码港 (NumHarbor) Telecom Reference](https://numharbor.com)
 
 ---
 
