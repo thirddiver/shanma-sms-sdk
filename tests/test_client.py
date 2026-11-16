@@ -1,5 +1,5 @@
 """
-Unit tests for Codex SMS Python SDK v0.3.2.
+Unit tests for Codex SMS Python SDK v0.3.3.
 """
 
 import unittest
@@ -11,6 +11,7 @@ import urllib.error
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import codex_sms
 import shanma
 from shanma import (
     CodexSmsClient,
@@ -41,10 +42,17 @@ class TestCodexSmsClient(unittest.TestCase):
         self.assertFalse(hasattr(CodexSmsClient, "cancel_order"))
         client = CodexSmsClient(cdkey="test_cdk")
         self.assertIsInstance(client, CodexSmsClient)
-        self.assertEqual(shanma.__version__, "0.3.2")
-        self.assertEqual(client.VERSION, "0.3.2")
+        self.assertEqual(shanma.__version__, "0.3.3")
+        self.assertEqual(client.VERSION, "0.3.3")
         self.assertEqual(client.cdkey, "test_cdk")
         self.assertEqual(client.api_key, "test_cdk")
+
+    def test_codex_sms_package_parity(self):
+        """Test codex_sms package re-exports all symbols and version cleanly."""
+        self.assertEqual(codex_sms.__version__, "0.3.3")
+        self.assertEqual(codex_sms.__all__, shanma.__all__)
+        for name in shanma.__all__:
+            self.assertIs(getattr(codex_sms, name), getattr(shanma, name))
 
     def test_init_without_key_raises_error(self):
         """Test initialization without CDK raises AuthenticationError."""

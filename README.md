@@ -3,7 +3,7 @@
 [![CI](https://github.com/thirddiver/shanma-sms-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/thirddiver/shanma-sms-sdk/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-0.3.2-green.svg)](https://github.com/thirddiver/shanma-sms-sdk)
+[![Version](https://img.shields.io/badge/version-0.3.3-green.svg)](https://github.com/thirddiver/shanma-sms-sdk)
 
 Official lightweight Python SDK for **Codex SMS** guest CDK SMS verification workflows ([shanma.store](https://shanma.store/)).
 
@@ -23,10 +23,16 @@ Built for developers and automation workflows interacting with single-use guest 
 
 ## Installation
 
-Install the tagged release directly via git (not published on PyPI):
+Install from PyPI (distribution `codex-sms`, once the PyPI release is published):
 
 ```bash
-pip install git+https://github.com/thirddiver/shanma-sms-sdk.git@v0.3.2
+pip install codex-sms
+```
+
+Or install the tagged release directly via git:
+
+```bash
+pip install git+https://github.com/thirddiver/shanma-sms-sdk.git@v0.3.3
 ```
 
 Or install from local source:
@@ -37,6 +43,8 @@ cd shanma-sms-sdk
 pip install .
 ```
 
+> Both `from codex_sms import CodexSmsClient` and legacy `from shanma import CodexSmsClient` are supported.
+
 ---
 
 ## Quickstart
@@ -44,7 +52,7 @@ pip install .
 ### 1. Recommended: Context Manager Pattern
 
 ```python
-from shanma import CodexSmsClient, ActivationNotFoundError, CodexSmsError
+from codex_sms import CodexSmsClient, ActivationNotFoundError, CodexSmsError
 
 # Purchase a single-use CDK for your target service at https://shanma.store/
 client = CodexSmsClient(cdkey="YOUR_CDK_SECRET_KEY")
@@ -77,7 +85,7 @@ except CodexSmsError as e:
 ### 2. Manual Step-by-Step Workflow
 
 ```python
-from shanma import CodexSmsClient, CodexSmsError, AuthenticationError, ConflictError
+from codex_sms import CodexSmsClient, CodexSmsError, AuthenticationError, ConflictError
 
 client = CodexSmsClient(cdkey="YOUR_CDK_SECRET_KEY")
 

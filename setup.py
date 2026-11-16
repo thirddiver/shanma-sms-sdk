@@ -4,8 +4,8 @@ from setuptools import setup, find_packages
 README = (Path(__file__).resolve().parent / "README.md").read_text(encoding="utf-8")
 
 setup(
-    name="shanma-sms-sdk",
-    version="0.3.2",
+    name="codex-sms",
+    version="0.3.3",
     description="Official Python SDK for Codex SMS verification and overseas mobile number services (https://shanma.store)",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -18,7 +18,7 @@ setup(
         "Issue Tracker": "https://github.com/thirddiver/shanma-sms-sdk/issues",
     },
     packages=find_packages(),
-    package_data={"shanma": ["py.typed"]},
+    package_data={"shanma": ["py.typed"], "codex_sms": ["py.typed"]},
     include_package_data=True,
     python_requires=">=3.10",
     classifiers=[

@@ -181,7 +181,7 @@ class CodexSmsClient:
     """
 
     DEFAULT_BASE_URL = "https://shanma.store"
-    VERSION = "0.3.2"
+    VERSION = "0.3.3"
 
     def __init__(
         self,
