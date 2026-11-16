@@ -1,5 +1,5 @@
 """
-Unit tests for Codex SMS Python SDK v0.3.1.
+Unit tests for Codex SMS Python SDK v0.3.2.
 """
 
 import unittest
@@ -11,6 +11,7 @@ import urllib.error
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+import shanma
 from shanma import (
     CodexSmsClient,
     ShanmaClient,
@@ -21,10 +22,13 @@ from shanma import (
     CodexSmsError,
     ShanmaError,
     AuthenticationError,
+    ConflictError,
     RateLimitError,
     CdkAlreadyUsedError,
     ActivationNotFoundError,
+    UpstreamCarrierError,
     NumberUnavailableError,
+    InsufficientBalanceError,
 )
 
 
@@ -34,9 +38,11 @@ class TestCodexSmsClient(unittest.TestCase):
         """Test that ShanmaClient is an alias for CodexSmsClient and CodexSmsError is ShanmaError."""
         self.assertIs(ShanmaClient, CodexSmsClient)
         self.assertIs(CodexSmsError, ShanmaError)
+        self.assertFalse(hasattr(CodexSmsClient, "cancel_order"))
         client = CodexSmsClient(cdkey="test_cdk")
         self.assertIsInstance(client, CodexSmsClient)
-        self.assertEqual(client.VERSION, "0.3.1")
+        self.assertEqual(shanma.__version__, "0.3.2")
+        self.assertEqual(client.VERSION, "0.3.2")
         self.assertEqual(client.cdkey, "test_cdk")
         self.assertEqual(client.api_key, "test_cdk")
 
@@ -271,7 +277,77 @@ class TestCodexSmsClient(unittest.TestCase):
             self.assertEqual(act.activation_id, "act_ctx_2")
 
         mock_redeem.assert_called_once_with(service="chatgpt")
-        mock_switch.assert_called_once()
+        mock_switch.assert_called_once_with(confirm_abandon_sms=False)
+
+    @patch("urllib.request.urlopen")
+    def test_query_sms_expired_raises_immediately(self, mock_urlopen):
+        """Test status='expired' raises ActivationNotFoundError and aborts wait_for_sms."""
+        mock_expired = MagicMock()
+        mock_expired.read.return_value = json.dumps({"status": "expired"}).encode("utf-8")
+        mock_urlopen.return_value.__enter__.return_value = mock_expired
+
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
+        with self.assertRaises(ActivationNotFoundError):
+            client.query_sms()
+
+        with patch("time.sleep") as mock_sleep:
+            with self.assertRaises(ActivationNotFoundError):
+                client.wait_for_sms(timeout=30, interval=5)
+            mock_sleep.assert_not_called()
+
+    @patch("urllib.request.urlopen")
+    def test_switch_phone_confirm_abandon_payload(self, mock_urlopen):
+        """Test switch_phone sends {} by default and confirm_abandon_sms=True when requested."""
+        mock_payload = {
+            "code": "CDK_TEST_123",
+            "phone": "+447911123456",
+            "activation_id": "act_new_100",
+            "service": "openai",
+            "country_name": "United Kingdom",
+        }
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
+        client.switch_phone()
+        sent_default = json.loads(mock_urlopen.call_args[0][0].data.decode("utf-8"))
+        self.assertEqual(sent_default, {})
+
+        client.switch_phone(confirm_abandon_sms=True)
+        sent_confirm = json.loads(mock_urlopen.call_args[0][0].data.decode("utf-8"))
+        self.assertEqual(sent_confirm, {"confirm_abandon_sms": True})
+
+    @patch("urllib.request.urlopen")
+    def test_extended_http_and_json_errors(self, mock_urlopen):
+        """Test 409/502/503 HTTP mappings and invalid JSON distinction."""
+        client = CodexSmsClient(cdkey="CDK_TEST_123")
+
+        cases = [
+            (409, b'{"detail":"confirm_abandon_sms required"}', ConflictError),
+            (502, b'{"detail":"upstream error"}', UpstreamCarrierError),
+            (503, b'{"detail":"\xe6\x9a\x82\xe6\x97\xa0\xe5\x8f\xaf\xe7\x94\xa8\xe5\x8f\xb7\xe7\xa0\x81"}', NumberUnavailableError),
+            (503, b'{"detail":"\xe4\xb8\x8a\xe6\xb8\xb8\xe8\xb4\xa6\xe6\x88\xb7\xe4\xbd\x99\xe9\xa2\x9d\xe4\xb8\x8d\xe8\xb6\xb3"}', InsufficientBalanceError),
+        ]
+        for code, payload, exc_cls in cases:
+            err = urllib.error.HTTPError(
+                url="https://shanma.store/api/guest/cdkeys/redeem",
+                code=code,
+                msg="Err",
+                hdrs={},
+                fp=MagicMock(read=lambda p=payload: p),
+            )
+            mock_urlopen.side_effect = err
+            with self.assertRaises(exc_cls):
+                client.redeem()
+
+        mock_urlopen.side_effect = None
+        bad_json = MagicMock()
+        bad_json.read.return_value = b"not-json"
+        mock_urlopen.return_value.__enter__.return_value = bad_json
+        with self.assertRaises(CodexSmsError) as ctx:
+            client.get_status()
+        self.assertIn("Invalid JSON response", str(ctx.exception))
 
 
 if __name__ == "__main__":

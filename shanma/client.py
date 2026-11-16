@@ -17,6 +17,7 @@ from .exceptions import (
     ShanmaError,
     CodexSmsError,
     AuthenticationError,
+    ConflictError,
     RateLimitError,
     CdkAlreadyUsedError,
     ActivationNotFoundError,
@@ -106,11 +107,9 @@ class ActivationContext:
         self,
         client: "CodexSmsClient",
         service: Optional[str] = None,
-        auto_switch: bool = False,
     ):
         self.client = client
         self.service = service
-        self.auto_switch = auto_switch
         self.order: Optional[OrderResult] = None
         self.sms: Optional[SmsResult] = None
 
@@ -128,11 +127,13 @@ class ActivationContext:
         """Returns the currently active activation identifier."""
         return self.order.activation_id if self.order else ""
 
-    def switch(self) -> OrderResult:
+    def switch(self, confirm_abandon_sms: bool = False) -> OrderResult:
         """
-        Request a free replacement phone number if no SMS was received.
+        Request a replacement phone number within per-CDK safety limits.
+        If an SMS code was already received on the active number, pass
+        confirm_abandon_sms=True (limited to once per single-use CDK).
         """
-        self.order = self.client.switch_phone()
+        self.order = self.client.switch_phone(confirm_abandon_sms=confirm_abandon_sms)
         self.sms = None
         return self.order
 
@@ -180,7 +181,7 @@ class CodexSmsClient:
     """
 
     DEFAULT_BASE_URL = "https://shanma.store"
-    VERSION = "0.3.1"
+    VERSION = "0.3.2"
 
     def __init__(
         self,
@@ -197,7 +198,7 @@ class CodexSmsClient:
         if not self.cdkey:
             raise AuthenticationError(
                 "A valid CDK (or api_key) is required to initialize CodexSmsClient. "
-                "Get your CDK instantly via Alipay at https://shanma.store"
+                "Purchase a CDK at https://shanma.store"
             )
 
     @property
@@ -249,23 +250,36 @@ class CodexSmsClient:
                 raise AuthenticationError(f"CDK authentication failed (HTTP {e.code}): {detail}")
             if e.code == 404:
                 raise ActivationNotFoundError(f"CDK or resource not found (HTTP 404): {detail}")
+            if e.code == 409:
+                raise ConflictError(f"Operation conflict or confirmation required (HTTP 409): {detail}")
             if e.code == 410:
                 raise CdkAlreadyUsedError(f"CDK has already been used or expired (HTTP 410): {detail}")
             if e.code == 429:
                 raise RateLimitError(f"API rate limit exceeded (HTTP 429): {detail}")
+            if e.code == 502:
+                raise UpstreamCarrierError(f"Upstream carrier gateway error (HTTP 502): {detail}")
+            if e.code == 503:
+                detail_str = str(detail)
+                if "余额" in detail_str or "balance" in detail_str.lower():
+                    raise InsufficientBalanceError(f"Upstream capacity/balance unavailable (HTTP 503): {detail}")
+                raise NumberUnavailableError(f"No numbers currently available (HTTP 503): {detail}")
             raise CodexSmsError(f"HTTP {e.code} error on {endpoint}: {detail}")
-        except Exception as e:
+        except json.JSONDecodeError as e:
+            raise CodexSmsError(f"Invalid JSON response from {url}: {e}")
+        except urllib.error.URLError as e:
             raise CodexSmsError(f"Connection error to {url}: {e}")
+        except OSError as e:
+            raise CodexSmsError(f"Transport/timeout error communicating with {url}: {e}")
 
     def redeem(self, service: Optional[str] = None) -> OrderResult:
         """
         Redeem the CDK and allocate an overseas mobile number.
 
         Note:
-            In the Codex SMS system, the target service is bound when the CDK is purchased
-            (e.g. OpenAI, Telegram, Google). The backend endpoint `/api/guest/cdkeys/redeem`
-            requires an empty body `{}` (extra fields are rejected by the server schema).
-            The `service` argument is accepted for client-side DX and logging.
+            In Codex SMS, the target service and routing pool are bound to the
+            purchased CDK itself. `/api/guest/cdkeys/redeem` validates `{}` with
+            `extra="forbid"`, so `service` is NOT sent on the wire and acts solely
+            as an optional local fallback label on `OrderResult.service`.
         """
         canonical_service = normalize_service(service)
 
@@ -288,10 +302,10 @@ class CodexSmsClient:
     def order_number(
         self,
         service: Optional[str] = None,
-        country: Optional[str] = None,
     ) -> OrderResult:
         """
-        Backwards-compatible alias for `redeem(service=...)`.
+        Deprecated alias for `redeem(service=...)`. Target service and country
+        allocation are governed by the purchased CDK and current pool availability.
         """
         return self.redeem(service=service)
 
@@ -305,10 +319,15 @@ class CodexSmsClient:
         """
         Query incoming SMS status for the currently bound phone number.
         Returns SmsResult if received, or None if still waiting.
+        Raises ActivationNotFoundError if backend reports status="expired".
         """
         res = self._request("/api/guest/cdkeys/sms", data={}, method="POST")
         status = res.get("status")
 
+        if status == "expired":
+            raise ActivationNotFoundError(
+                "CDK session is expired, unredeemed, or no longer bound (status='expired')."
+            )
         if status == "received" and res.get("code"):
             return SmsResult(
                 code=str(res.get("code")),
@@ -325,7 +344,10 @@ class CodexSmsClient:
         on_poll: Optional[Callable[[int, float], None]] = None,
     ) -> Optional[SmsResult]:
         """
-        Poll until an SMS verification code arrives or the timeout limit is reached.
+        Poll until an SMS verification code arrives or the timeout limit elapses.
+
+        Returns SmsResult when received, or None when timeout elapses without raising TimeoutError.
+        Propagates ActivationNotFoundError immediately if status="expired".
 
         Args:
             activation_id: Optional ID for interface compatibility.
@@ -335,12 +357,14 @@ class CodexSmsClient:
         """
         # Enforce rate limit protection: max 15 requests/min per CDK
         interval = max(interval, 4)
-        start_time = time.time()
+        start_mono = time.monotonic()
         attempt = 0
 
-        while time.time() - start_time < timeout:
+        while True:
+            elapsed = time.monotonic() - start_mono
+            if elapsed >= timeout:
+                break
             attempt += 1
-            elapsed = time.time() - start_time
             if on_poll:
                 try:
                     on_poll(attempt, elapsed)
@@ -350,15 +374,25 @@ class CodexSmsClient:
             sms = self.query_sms()
             if sms:
                 return sms
-            time.sleep(interval)
+
+            remaining = timeout - (time.monotonic() - start_mono)
+            if remaining <= 0:
+                break
+            time.sleep(min(interval, remaining))
 
         return None
 
-    def switch_phone(self) -> OrderResult:
+    def switch_phone(self, confirm_abandon_sms: bool = False) -> OrderResult:
         """
-        Request a free replacement phone number if the current number did not receive an SMS.
+        Request a replacement phone number within per-CDK safety limits (up to 30
+        total acquired numbers per CDK; contact support if the limit is reached).
+
+        If an SMS code was already received on the current number, the server
+        returns HTTP 409 Conflict unless confirm_abandon_sms=True is supplied
+        (abandon-with-code replacement is permitted at most once per single-use CDK).
         """
-        res = self._request("/api/guest/cdkeys/switch", data={}, method="POST")
+        payload: Dict[str, Any] = {"confirm_abandon_sms": True} if confirm_abandon_sms else {}
+        res = self._request("/api/guest/cdkeys/switch", data=payload, method="POST")
         phone = str(res.get("phone") or res.get("phone_number") or "")
         activation_id = str(res.get("activation_id") or "")
         country = str(res.get("country_name") or res.get("country") or "")
@@ -378,19 +412,9 @@ class CodexSmsClient:
         """
         return self._request("/api/guest/cdkeys/resend", data={}, method="POST")
 
-    def cancel_order(self, activation_id: Optional[str] = None) -> bool:
-        """
-        Graceful cancellation helper for backwards compatibility.
-        """
-        try:
-            return True
-        except Exception:
-            return False
-
     def activation(
         self,
         service: Optional[str] = None,
-        auto_switch: bool = False,
     ) -> ActivationContext:
         """
         Convenience factory for the ActivationContext manager.
@@ -398,7 +422,6 @@ class CodexSmsClient:
         return ActivationContext(
             client=self,
             service=service,
-            auto_switch=auto_switch,
         )
 
 

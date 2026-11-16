@@ -13,7 +13,12 @@ CodexSmsError = ShanmaError
 
 
 class AuthenticationError(CodexSmsError):
-    """Raised when API authentication fails (invalid CDK or unauthorized)."""
+    """Raised when API authentication fails (invalid CDK or unauthorized, HTTP 401/403)."""
+    pass
+
+
+class ConflictError(CodexSmsError):
+    """Raised when operation conflicts with current state or requires confirmation (HTTP 409)."""
     pass
 
 
@@ -28,25 +33,25 @@ class CdkAlreadyUsedError(CodexSmsError):
 
 
 class ActivationNotFoundError(CodexSmsError):
-    """Raised when the specified CDK or activation ID is not found (HTTP 404)."""
+    """Raised when the CDK/resource is not found (HTTP 404) or session status is 'expired'."""
     pass
 
 
 class TimeoutError(CodexSmsError):
-    """Raised when waiting for incoming SMS verification code exceeds timeout."""
+    """Optional SDK timeout exception class for callers; wait_for_sms() returns None on timeout."""
     pass
 
 
 class UpstreamCarrierError(CodexSmsError):
-    """Raised when upstream mobile network operator fails or returns an error."""
+    """Raised when upstream carrier gateway fails or returns an error (HTTP 502)."""
     pass
 
 
 class NumberUnavailableError(CodexSmsError):
-    """Raised when no numbers are available for the requested service/country."""
+    """Raised when no numbers are currently available in the pool (HTTP 503)."""
     pass
 
 
 class InsufficientBalanceError(CodexSmsError):
-    """Raised when account balance or credits are insufficient."""
+    """Raised when upstream capacity/balance is unavailable (HTTP 503)."""
     pass

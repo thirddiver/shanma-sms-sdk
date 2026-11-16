@@ -1,6 +1,6 @@
 """
-Codex SMS Python SDK - Quickstart Example (v0.3.1)
-Demonstrates redeeming an overseas number, receiving SMS, and handling free replacements.
+Codex SMS Python SDK - Quickstart Example (v0.3.2)
+Demonstrates redeeming an overseas number, receiving SMS, and handling replacements within quota limits.
 """
 
 import sys
@@ -18,9 +18,13 @@ from shanma import (
 )
 
 
+def _mask_cdk(cdk: str) -> str:
+    return f"***{cdk[-4:]}" if len(cdk) > 4 else "****"
+
+
 def run_live_workflow(cdk: str) -> None:
     """Executes a real workflow against the live Codex SMS service using a valid CDK."""
-    print(f"Connecting to Codex SMS with CDK: {cdk[:8]}***")
+    print(f"Connecting to Codex SMS with CDK: {_mask_cdk(cdk)}")
     client = CodexSmsClient(cdkey=cdk)
 
     try:
@@ -55,7 +59,7 @@ def run_live_workflow(cdk: str) -> None:
 def show_demo_walkthrough() -> None:
     """Displays code guidance when no environment variable is provided."""
     print("=" * 60)
-    print("Codex SMS Python SDK (v0.3.1) - Quickstart Walkthrough")
+    print("Codex SMS Python SDK (v0.3.2) - Quickstart Walkthrough")
     print("=" * 60)
     print("\n[NOTE] No CODEX_SMS_CDK environment variable detected.")
     print("To execute against the live service, set CODEX_SMS_CDK or pass your key directly:")
@@ -88,14 +92,15 @@ cdk_list = ["CDK-KEY-1", "CDK-KEY-2", "CDK-KEY-3"]
 
 for key in cdk_list:
     client = CodexSmsClient(cdkey=key)
+    tag = f"***{key[-4:]}"
     try:
         order = client.redeem()
-        print(f"[{key}] Phone: {order.phone_number}")
+        print(f"[{tag}] Phone: {order.phone_number}")
         sms = client.wait_for_sms(timeout=120)
         if sms:
-            print(f"[{key}] Code: {sms.code}")
+            print(f"[{tag}] Code: {sms.code}")
     except CodexSmsError as err:
-        print(f"[{key}] Failed: {err}")
+        print(f"[{tag}] Failed: {err}")
 """)
     print("=" * 60)
 

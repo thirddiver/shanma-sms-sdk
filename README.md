@@ -2,32 +2,31 @@
 
 [![CI](https://github.com/thirddiver/shanma-sms-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/thirddiver/shanma-sms-sdk/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-0.3.1-green.svg)](https://github.com/thirddiver/shanma-sms-sdk)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Version](https://img.shields.io/badge/version-0.3.2-green.svg)](https://github.com/thirddiver/shanma-sms-sdk)
 
-The official, lightweight Python SDK for **Codex SMS** verification and overseas mobile number services ([shanma.store](https://shanma.store/)).
+Official lightweight Python SDK for **Codex SMS** guest CDK SMS verification workflows ([shanma.store](https://shanma.store/)).
 
-Built for developers, AI agent builders, and automation workflows needing programmatic, reliable overseas SMS verification codes across OpenAI / ChatGPT, Telegram, Google, WhatsApp, and more.
+Built for developers and automation workflows interacting with single-use guest CDKs (`POST /api/guest/cdkeys/*`) with zero third-party runtime dependencies. (7-day rental/prolong cards `rent_7d` are operated via the web console and are outside the scope of this SDK.)
 
 ---
 
 ## Key Highlights
 
-- **Zero Third-Party Dependencies**: Pure Python standard library implementation (`urllib`, `json`, `dataclasses`). Zero external runtime bloat.
-- **CDK-as-Token Authentication**: No account registration or password required. Purchase single-use or multi-use CDKs instantly via Alipay at [shanma.store](https://shanma.store/) and pass the CDK directly as a Bearer Token.
-- **Pythonic Context Manager**: Elegant `with client.activation(service=...) as act:` workflow with automated phone switching and polling.
-- **Free Replacement Guarantee**: Seamlessly call `client.switch_phone()` or `act.switch()` if a number does not receive an SMS or is flagged by the target service — replacement numbers are free within session safety limits until code is received.
-- **Service Alias Normalization**: Transparently maps aliases (`chatgpt`, `dr`, `go`, `gmail`, `tg`, `wa`) to canonical platform service codes.
-- **Strict Typing & Typed Exceptions**: 100% typed with dataclasses (`OrderResult`, `SmsResult`) and specific error handling (`CodexSmsError`, `AuthenticationError`, `RateLimitError`, `CdkAlreadyUsedError`).
+- **Zero Third-Party Dependencies**: Pure Python 3.9+ standard library (`urllib`, `json`, `dataclasses`) with PEP 561 `py.typed` support.
+- **Zero-Registration CDK Authentication**: Purchase a single-use guest CDK at [shanma.store](https://shanma.store/) (live pricing, stock, and supported payment methods follow the public catalog at `https://shanma.store/api/cdkey/catalog` and checkout page) and pass it as a Bearer token. Target service and country routing are determined by the purchased CDK itself.
+- **Context Manager Workflow**: Use `with client.activation() as act:` to redeem, poll with monotonic timing bounds, resend, and switch numbers.
+- **Quota-Bounded Number Replacement**: If an SMS code is not received, call `client.switch_phone()` or `act.switch()` for free replacement within validity windows and the system limit of **up to 30 total acquired numbers per CDK** (contact support if the limit is reached). Abandoning a number that already received an SMS requires `confirm_abandon_sms=True` and is limited to **once per single-use CDK**.
+- **Explicit Session & Carrier Error Mapping**: Translates HTTP `401/403`, `404` / `status="expired"`, `409`, `410`, `429`, `502`, and `503` into typed exceptions (`ConflictError`, `ActivationNotFoundError`, `UpstreamCarrierError`, `NumberUnavailableError`, `InsufficientBalanceError`).
 
 ---
 
 ## Installation
 
-Install directly via git:
+Install the tagged release directly via git (not published on PyPI):
 
 ```bash
-pip install git+https://github.com/thirddiver/shanma-sms-sdk.git
+pip install git+https://github.com/thirddiver/shanma-sms-sdk.git@v0.3.2
 ```
 
 Or install from local source:
@@ -44,96 +43,70 @@ pip install .
 
 ### 1. Recommended: Context Manager Pattern
 
-The context manager automatically redeems the CDK and provides convenient helper methods for polling and switching numbers:
-
 ```python
-from shanma import CodexSmsClient, CodexSmsError
+from shanma import CodexSmsClient, ActivationNotFoundError, CodexSmsError
 
-# Initialize client using your purchased CDK
+# Purchase a single-use CDK for your target service at https://shanma.store/
 client = CodexSmsClient(cdkey="YOUR_CDK_SECRET_KEY")
 
-with client.activation(service="chatgpt") as act:
-    print(f"Allocated phone: {act.phone_number}")
-    print(f"Activation ID: {act.activation_id}")
-    
-    # Poll for SMS code (default timeout: 180s, interval: 5s)
-    sms = act.wait_for_sms(timeout=120)
-    
-    if sms:
-        print(f"Verification code received: {sms.code}")
-        print(f"Full SMS text: {sms.full_text}")
-    else:
-        print("Timeout without SMS. Requesting a free replacement number...")
-        act.switch()
-        print(f"New replacement phone: {act.phone_number}")
+try:
+    with client.activation() as act:
+        print(f"Allocated phone: {act.phone_number}")
+        print(f"Activation ID: {act.activation_id}")
+
+        # Returns SmsResult or None if timeout elapses without an SMS
         sms = act.wait_for_sms(timeout=120)
         if sms:
-            print(f"Code received on new number: {sms.code}")
+            print(f"Verification code received: {sms.code}")
+            print(f"Full SMS text: {sms.full_text}")
+        else:
+            print("Timeout without SMS. Requesting replacement within CDK quota...")
+            act.switch()
+            print(f"Replacement phone: {act.phone_number}")
+            sms = act.wait_for_sms(timeout=120)
+            if sms:
+                print(f"Code received on replacement number: {sms.code}")
+except ActivationNotFoundError:
+    print("CDK not found or activation session expired.")
+except CodexSmsError as e:
+    print(f"API operation failed: {e}")
 ```
 
 ---
 
 ### 2. Manual Step-by-Step Workflow
 
-For fine-grained control across separate functions or microservices:
-
 ```python
-from shanma import CodexSmsClient, CodexSmsError, AuthenticationError
+from shanma import CodexSmsClient, CodexSmsError, AuthenticationError, ConflictError
 
 client = CodexSmsClient(cdkey="YOUR_CDK_SECRET_KEY")
 
 try:
-    # 1. Redeem CDK and allocate number
-    order = client.redeem(service="telegram")
+    order = client.redeem()
     print(f"Phone: {order.phone_number} (Country: {order.country})")
 
-    # 2. Poll for SMS verification code
     sms = client.wait_for_sms(timeout=120, interval=5)
     if sms:
         print(f"Received code: {sms.code}")
     else:
-        # 3. If unreceived, switch to a fresh number
         new_order = client.switch_phone()
         print(f"Switched to: {new_order.phone_number}")
 
 except AuthenticationError:
-    print("Invalid or unpaid CDK. Please check your key at shanma.store.")
+    print("Invalid or unpaid CDK. Verify your order at https://shanma.store.")
+except ConflictError:
+    # Raised if an SMS was already received on the current number;
+    # pass switch_phone(confirm_abandon_sms=True) only if you intend to abandon it (1x limit).
+    print("Replacement requires confirm_abandon_sms=True or another switch is in progress.")
 except CodexSmsError as e:
     print(f"Operation failed: {e}")
 ```
 
 ---
 
-### 3. Batch Automation (Multiple CDKs)
-
-Process multiple verifications sequentially or in thread pools:
-
-```python
-from shanma import CodexSmsClient, CodexSmsError
-
-cdk_list = [
-    "CDK-ABCD-1111",
-    "CDK-EFGH-2222",
-    "CDK-IJKL-3333",
-]
-
-for cdk in cdk_list:
-    client = CodexSmsClient(cdkey=cdk)
-    try:
-        with client.activation(service="openai") as act:
-            print(f"[{cdk}] Number: {act.phone_number}")
-            sms = act.wait_for_sms(timeout=90)
-            if sms:
-                print(f"[{cdk}] Code: {sms.code}")
-    except CodexSmsError as err:
-        print(f"[{cdk}] Failed: {err}")
-```
-
----
-
 ## Service Aliases
 
-The SDK automatically normalizes convenient aliases to official service identifiers:
+`normalize_service()` maps common local labels to canonical service codes (note: `/api/guest/cdkeys/redeem` validates `{}` with `extra="forbid"`, so target service is always governed by the purchased CDK itself):
 
 | Service / App | Supported Aliases | Canonical Identifier |
 |---|---|---|
@@ -150,87 +123,75 @@ The SDK automatically normalizes convenient aliases to official service identifi
 ## API Reference
 
 ### `CodexSmsClient`
-- `CodexSmsClient(cdkey: str, base_url: str = "https://shanma.store", timeout: int = 30)`: Initialize client with CDK.
-- `client.redeem(service: Optional[str] = None) -> OrderResult`: Redeem CDK to allocate an overseas number.
-- `client.get_status() -> Dict[str, Any]`: Query status, remaining time, and allocated phone.
-- `client.query_sms() -> Optional[SmsResult]`: Single check for incoming SMS payload.
-- `client.wait_for_sms(timeout: int = 180, interval: int = 5, on_poll: Optional[Callable]) -> Optional[SmsResult]`: Poll until SMS received or timeout reached.
-- `client.switch_phone() -> OrderResult`: Cancel unfulfilled number and allocate a replacement number.
-- `client.resend_sms() -> Dict[str, Any]`: Trigger carrier resend.
-- `client.activation(service: Optional[str] = None) -> ActivationContext`: Context manager helper.
+- `CodexSmsClient(cdkey: str, base_url: str = "https://shanma.store", timeout: int = 30)`: Initialize client with a guest CDK.
+- `client.redeem(service: Optional[str] = None) -> OrderResult`: Redeem the CDK via `POST /api/guest/cdkeys/redeem` with `{}` (`service` is optional local metadata fallback).
+- `client.get_status() -> Dict[str, Any]`: Query current activation state, remaining time, and allocated phone.
+- `client.query_sms() -> Optional[SmsResult]`: Poll `POST /api/guest/cdkeys/sms`; returns `SmsResult` if received, `None` if waiting, or raises `ActivationNotFoundError` if `status == "expired"`.
+- `client.wait_for_sms(timeout: int = 180, interval: int = 5, on_poll: Optional[Callable]) -> Optional[SmsResult]`: Poll with `time.monotonic()` up to `timeout` (interval clamped `>= 4s` to respect per-CDK rate limits); returns `None` when timeout elapses without raising `TimeoutError`.
+- `client.switch_phone(confirm_abandon_sms: bool = False) -> OrderResult`: Switch to a replacement number within the 30-number per-CDK cap; pass `confirm_abandon_sms=True` only when abandoning a previously received SMS (allowed once per CDK).
+- `client.resend_sms() -> Dict[str, Any]`: Request carrier resend (`POST /api/guest/cdkeys/resend`).
+- `client.activation(service: Optional[str] = None) -> ActivationContext`: Context manager factory (`act.switch(confirm_abandon_sms=...)`).
 
 ---
 
 ## Error Hierarchy
 
-All exceptions inherit from `CodexSmsError` (aliased to `ShanmaError` for backwards compatibility):
+All exceptions inherit from `CodexSmsError` (aliased as `ShanmaError` for code compatibility):
 
 ```text
 CodexSmsError (alias ShanmaError)
  ├── AuthenticationError      (HTTP 401/403: Invalid or unpaid CDK)
- ├── RateLimitError          (HTTP 429: Request rate limit exceeded)
- ├── CdkAlreadyUsedError      (HTTP 410: CDK already redeemed or expired)
- ├── ActivationNotFoundError (HTTP 404: Resource or CDK not found)
- ├── TimeoutError            (Timed out waiting for SMS)
- └── UpstreamCarrierError    (Upstream carrier allocation issue)
+ ├── ActivationNotFoundError  (HTTP 404 or status="expired": CDK/session unavailable)
+ ├── ConflictError            (HTTP 409: Requires confirm_abandon_sms=True or switch in progress)
+ ├── CdkAlreadyUsedError      (HTTP 410: CDK already used or expired)
+ ├── RateLimitError           (HTTP 429: Per-IP, per-CDK, or 30-number limit exceeded)
+ ├── UpstreamCarrierError     (HTTP 502: Upstream carrier gateway error)
+ ├── NumberUnavailableError   (HTTP 503: No numbers currently available)
+ ├── InsufficientBalanceError (HTTP 503: Upstream balance unavailable)
+ └── TimeoutError             (Optional exception class; wait_for_sms returns None on timeout)
 ```
 
 ---
 
 ## Running Tests
 
-The test suite runs completely offline with standard Python `unittest`:
+The unit test suite runs completely offline using mocked HTTP responses:
 
 ```bash
-python -m unittest discover tests
+python -m unittest discover -s tests -v
 ```
 
 ---
 
-## Developer Verification Guides & Troubleshooting
+## Verification Guides & Historical Line-Type Notes
 
-For step-by-step carrier bypass instructions, VoIP error troubleshooting, and native SIM allocation guides, refer to our comprehensive technical documentation:
+Core troubleshooting and verification boundary documentation is published at **[guide.shanma.store](https://guide.shanma.store/)**:
 
-| Service / Topic | Technical Troubleshooting Guide | Key Focus |
-|---|---|---|
-| **OpenAI / ChatGPT / Sora** | [OpenAI SMS Verification & VoIP Rejection Solutions](https://guide.shanma.store/news/openai-sms-verification.html) | Fix "Your phone number was flagged as VoIP" & Unsupported region errors |
-| **Claude 3.7 / Sonnet** | [Claude Phone Verification & Registration Guide](https://guide.shanma.store/news/claude-phone-verification.html) | Non-VoIP native SIM bypass for Anthropic Claude registration |
-| **Cursor & Windsurf AI** | [Cursor & Windsurf IDE Phone Verification Guide](https://guide.shanma.store/news/cursor-windsurf-claude-phone-verification-guide.html) | Developer IDE phone activation & environment setup |
-| **ChatGPT Registration Truth** | [ChatGPT Register Without Phone Number Myth](https://guide.shanma.store/news/chatgpt-register-no-phone-myth.html) | Deep dive into OpenAI's mandatory telecom KYC requirements |
-| **Platform Comparison 2026** | [Global SMS Verification Platforms Comparison (2026)](https://guide.shanma.store/news/sms-platform-comparison-2026.html) | Benchmark Codex SMS vs 5sim, SMS-Activate, HeroSMS |
-| **OpenAI API Key Auth** | [OpenAI API First Key Phone Verification Guide](https://guide.shanma.store/news/openai-api-registration-phone.html) | Enterprise developer API key verification without subscription |
-| **Google / Gmail / GV** | [Google Account Phone Verification & Flag Removal](https://guide.shanma.store/news/google-account-phone-verification.html) | Avoid carrier suspension on Gmail & Google Voice |
-| **giffgaff UK Physical SIM** | [giffgaff UK SIM Activation & Keep-Alive Guide](https://guide.shanma.store/news/giffgaff-activation-china-guide.html) | Long-term UK physical number retention for global developers |
-| **Telegram App Verification** | [Telegram Ban Appeal & Phone Verification](https://guide.shanma.store/news/telegram-ban-appeal.html) | Bypass SMS timeout and carrier blocks on Telegram |
+| Topic | Documentation |
+|---|---|
+| **OpenAI / ChatGPT / Sora** | [OpenAI SMS Verification & VoIP Troubleshooting](https://guide.shanma.store/news/openai-sms-verification.html) |
+| **Anthropic / Claude** | [Claude Phone Verification Guide](https://guide.shanma.store/news/claude-phone-verification.html) |
+| **Google / Gmail** | [Google Account Phone Verification Guide](https://guide.shanma.store/news/google-account-phone-verification.html) |
+| **Platform Model Comparison** | [SMS Verification Platforms Comparison (2026)](https://guide.shanma.store/news/sms-platform-comparison-2026.html) |
 
----
+### Reference Dataset & Architectural Comparison ([`benchmark/`](./benchmark/))
 
-## Platform Verification Policy & Line-Type Reference
+- **Historical Reference Table**: [`benchmark/platform-voip-policy-2026.csv`](./benchmark/platform-voip-policy-2026.csv) records team-maintained historical line-type observations (not official platform policies). Provenance: field observations compiled by the Codex SMS engineering team alongside the co-maintained historical dataset on **NumHarbor (numharbor.com, historical dataset N=1,784 observations as of 2026-11)**; past observations do not certify current delivery rates.
 
-To support programmatic developers navigating strict anti-fraud checks (Arkose Labs, Telesign, Twilio Lookup v2), this repository hosts an open-source telecom risk reference in [`benchmark/`](./benchmark/):
+| Evaluation Dimension | Type A: Prepaid Balance Aggregators (5sim / HeroSMS) | Type B: Stateless Pay-per-OTP Gateways (Codex SMS) |
+| :--- | :--- | :--- |
+| **Line-Type Routing** | Shared wholesale pools with varying VoIP ratios | Overseas mobile carrier number ranges; actual country and operator follow live redemption allocation |
+| **Account & Pricing** | Account registration with pre-funded wallet balance (minimums follow each platform's current rules) | Zero registration, single-use CDK fulfillment; current pricing, catalog, and payment methods follow [shanma.store](https://shanma.store/) checkout |
+| **Failover & Limits** | Unreceived codes return to internal platform wallet balance | Free number replacement before code receipt within validity windows and the **30 total acquired numbers per CDK** limit (contact support if reached) |
 
-- **Platform Verification Policy & Line-Type Reference**: [`benchmark/platform-voip-policy-2026.csv`](./benchmark/platform-voip-policy-2026.csv) (tracking E.164 prefix gates, line-type filtering, and risk control mechanisms across OpenAI, Claude, Google, Telegram, etc.).
-- **Data Provenance**: Maintained alongside field troubleshooting logs at **[guide.shanma.store](https://guide.shanma.store)** and telecom reference data from **[号码港 (NumHarbor)](https://numharbor.com)**.
-
-### Architectural Taxonomy: Prepaid Pools vs. Stateless Pay-per-OTP
-
-| Evaluation Dimension | Type A: Prepaid Balance Aggregators (HeroSMS / 5sim) | Type B: Stateless Pay-per-OTP Gateways (Codex SMS) | Data Provenance |
-| :--- | :--- | :--- | :--- |
-| **Line-Type Routing** | Public wholesale pool (higher VoIP proportion) | Clean overseas physical MNO / MVNO SIM pools | [号码港 numharbor.com](https://numharbor.com) |
-| **Deposit Requirement** | Custodial account registration with pre-deposit balance (~$1–$10 depending on payment rail) | Zero registration, single token fulfillment (¥6.99–9.99) | [Codex SMS (shanma.store)](https://shanma.store) |
-| **Settlement Rails** | Crypto, foreign cards, or third-party gateways (subject to platform minimums & FX fees) | Direct Alipay / WeChat Pay with zero FX loss | [Codex SMS (shanma.store)](https://shanma.store) |
-| **Failover Guarantee** | Manual re-selection; unreceived codes refund to internal platform balance | Interface-driven free replacement within session safety limits | [guide.shanma.store](https://guide.shanma.store) |
-
-**Engineering Selection Guideline**:
-- Use Type A for high-volume batch automation where balance lock-in is amortized over hundreds of calls.
-- Use Type B (**[Codex SMS](https://shanma.store)**) for developers needing clean physical SIM verification without custodial pre-deposits: **单卡 ¥6.99~9.99 起现买现用 · 免充值预存门槛 · 支付宝/微信直付零外汇损 · 未收到验证码支持界面规则内免费更换号码直至成功**.
+*(Note: Receiving an SMS code confirms delivery on a temporary number only and does not guarantee third-party account approval or long-term retention.)*
 
 ---
 
 ## Links & Resources
 
-- Official Service: [shanma.store](https://shanma.store/)
-- Troubleshooting & Verification Guides: [guide.shanma.store](https://guide.shanma.store/)
+- Official Service & Catalog: [shanma.store](https://shanma.store/)
+- Verification Guides: [guide.shanma.store](https://guide.shanma.store/)
 - Issue Tracker: [GitHub Issues](https://github.com/thirddiver/shanma-sms-sdk/issues)
 
 ---

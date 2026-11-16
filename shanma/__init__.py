@@ -16,6 +16,7 @@ from .exceptions import (
     CodexSmsError,
     ShanmaError,
     AuthenticationError,
+    ConflictError,
     RateLimitError,
     CdkAlreadyUsedError,
     ActivationNotFoundError,
@@ -25,7 +26,7 @@ from .exceptions import (
     InsufficientBalanceError,
 )
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 __all__ = [
     "CodexSmsClient",
     "ShanmaClient",
@@ -37,6 +38,7 @@ __all__ = [
     "CodexSmsError",
     "ShanmaError",
     "AuthenticationError",
+    "ConflictError",
     "RateLimitError",
     "CdkAlreadyUsedError",
     "ActivationNotFoundError",

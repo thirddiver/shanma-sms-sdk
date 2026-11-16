@@ -1,80 +1,57 @@
-# Platform Verification Policy & Line-Type Reference (2026 Edition)
+# Platform Verification Policy & Line-Type Reference (2026 Historical Notes)
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![Reference: Guide Site](https://img.shields.io/badge/Reference-Codex_SMS_Guides-blue)](https://guide.shanma.store)
-[![Implementation: Codex SMS](https://img.shields.io/badge/Gateway-Codex_SMS-orange)](https://shanma.store)
+[![Reference: Guide Site](https://img.shields.io/badge/Reference-Codex_SMS_Guides-blue)](https://guide.shanma.store/)
+[![Implementation: Codex SMS](https://img.shields.io/badge/Gateway-Codex_SMS-orange)](https://shanma.store/)
 
-A developer-focused reference matrix tracking **line-type eligibility (Physical SIM vs. VoIP)**, **E.164 prefix restrictions**, and **account-phone association retention windows** across major developer and consumer platforms (OpenAI/ChatGPT, Claude, Google Workspace, Telegram, Twitter/X, Discord, Cursor/Windsurf, Microsoft Outlook).
+A team-maintained historical reference matrix summarizing observed **line-type screening behaviors**, **E.164 prefix restrictions**, and **account-phone association notes** across major developer and consumer platforms as of **2026-11**.
 
-> **Data & Verification Notes:**
-> This reference compiles field verification observations documented across the **[Codex SMS Technical Guides](https://guide.shanma.store)** and telecom reference data from **[号码港 (NumHarbor)](https://numharbor.com)** (a partner reference site operated by the same core engineering team). It serves as an operational guideline for programmatic authentication workflows.
+> **Provenance & Scope Disclosure:**
+> This table reflects historical observations compiled by the **Codex SMS** engineering team (`guide.shanma.store`) alongside historical aggregate records co-maintained with **NumHarbor (numharbor.com)** (`N=1,784` total historical records, compiled through `2026-11`; original dataset did not distinguish paid vs. free acquisition sources). These entries are **not official platform policies** and do **not** guarantee future acceptance rates, live inventory, or account approval.
 
 ---
 
-## 1. Platform Risk Control & Line-Type Support Matrix
+## 1. Observed Line-Type Support Matrix (Historical Reference)
 
-Identity verification gateways (e.g., Arkose Labs, Telesign, Twilio Lookup v2) evaluate carrier routing categories before dispatching an SMS payload.
+Target services apply dynamic risk controls (E.164 prefix checks, line-type reputation, and client environment checks). Entries below summarize prior observations through `2026-11`:
 
-| Target Service | `+86` Prefix Policy | Non-Fixed VoIP | MVNO Range | Physical SIM (`MNO`) | Association Retention | Primary Failure Vector |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **OpenAI / ChatGPT** | Blocked (API Gate) | Hard Reject | Conditional | **Accepted** | 30 Days (Deletion release) / Unknown | VoIP line-type screening & recycled number association restriction |
-| **Anthropic / Claude** | Blocked | Hard Reject | High Risk | **Accepted** | Unknown (Account Bound Risk) | Strict browser fingerprint & E.164 geo-mismatch |
-| **Google / Gmail** | Rate-Limited | Soft Reject | Accepted | **Accepted** | Unknown (Dynamic Risk Policy) | Risk-based challenge triggered by IP & carrier reputation |
-| **Telegram** | Restricted (+86) / High Delay | Blocked | Conditional | **Accepted** | Unknown | International SMS interception & carrier gateway delay |
-| **Twitter / X** | Rate-Limited | Soft Reject | Accepted | **Accepted** | Unknown (Rate-Limited) | Carrier SMS filtering & platform rate limiting |
-| **Discord** | Accepted | Hard Reject | Conditional | **Accepted** | Unknown (Lockout Cooldown Risk) | Anti-bot automated line-type screening |
-| **Cursor / Windsurf** | Blocked (+86) | Hard Reject | Conditional | **Accepted** | Unknown (Upstream Dependent) | Multi-provider OAuth & upstream phone verification gating |
-| **Microsoft Outlook** | Accepted | Soft Reject | Accepted | **Accepted** | Unknown (Dynamic Risk Policy) | IP and phone number risk reputation score |
+| Target Service | `+86` Prefix Policy | Non-Fixed VoIP | MVNO Range | Physical SIM (`MNO`) | Association Retention | Primary Failure Vector | Observation Date |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **OpenAI / ChatGPT** | Blocked (API Gate) | Hard Reject | Conditional | Observed Accepted | ~30 Days (Deletion release) / Unknown | VoIP line-type screening & recycled number binding limits | 2026-11 |
+| **Anthropic / Claude** | Blocked | Hard Reject | High Risk | Observed Accepted | Unknown (Account Bound) | Browser fingerprint & E.164 region mismatch | 2026-11 |
+| **Google / Gmail** | Rate-Limited | Soft Reject | Observed Conditional | Observed Accepted | Unknown (Dynamic Policy) | Risk challenge triggered by IP & carrier reputation | 2026-11 |
+| **Telegram** | Restricted (+86) / High Delay | Blocked | Conditional | Observed Accepted | Unknown | International SMS filtering & gateway delay | 2026-11 |
+| **Twitter / X** | Rate-Limited | Soft Reject | Observed Conditional | Observed Accepted | Unknown | Carrier SMS filtering & rate limiting | 2026-11 |
+| **Discord** | Accepted | Hard Reject | Conditional | Observed Accepted | Unknown | Automated anti-bot line-type screening | 2026-11 |
+| **Cursor / Windsurf** | Blocked (+86) | Hard Reject | Conditional | Observed Accepted | Unknown | Upstream OAuth & phone verification gating | 2026-11 |
+| **Microsoft Outlook** | Accepted | Soft Reject | Observed Conditional | Observed Accepted | Unknown | IP and phone number risk reputation score | 2026-11 |
 
-*(The complete platform policy table is available in [`platform-voip-policy-2026.csv`](./platform-voip-policy-2026.csv) and maintained alongside technical guides at **[guide.shanma.store](https://guide.shanma.store)**).*
+*(Raw CSV: [`platform-voip-policy-2026.csv`](./platform-voip-policy-2026.csv); field troubleshooting notes: **[guide.shanma.store](https://guide.shanma.store/)**.)*
 
 ---
 
 ## 2. Architectural Comparison: Verification Gateway Models
 
-Based on billing structures, balance management, and carrier routing:
+### Type A: Prepaid Balance Aggregators (Account Wallet Model)
+* **Mechanism:** Users register an account and pre-deposit funds into an internal balance to rent numbers from shared pools. Minimum deposit thresholds and supported payment channels depend on each provider's current terms.
+* **Representative Providers:** 5sim, HeroSMS.
+* **Operational Trade-offs:** Well-suited for recurring API users who maintain standing wallet balances; cancelled or unreceived activations typically credit back to the internal account balance rather than the external payment source.
 
-### Type A: Prepaid Balance Aggregators (Wholesale Account Model)
-* **Mechanism:** Users register an account and pre-deposit funds (typically starting from ~$1 to $10 depending on payment channels like Alipay, card, or crypto) to rent numbers from shared pools.
-* **Representative Active Providers:** 5sim, HeroSMS.
-* **Engineering Trade-offs:** Suitable for high-volume automated API workflows. For individual developers with low-frequency needs, remaining balances remain deposited in the platform account, and unreceived codes refund to the internal balance rather than the original payment method.
-
-### Type B: Stateless Pay-per-OTP Token Gateways (Single-Use Token Model)
-* **Mechanism:** Zero-registration architecture utilizing disposable cryptographic tokens (单次卡密). Users acquire a single-purpose token on demand without maintaining an account balance.
-* **Representative Implementation:** **[Codex SMS (shanma.store)](https://shanma.store)**
+### Type B: Stateless Pay-per-OTP Token Gateways (Single-Use CDK Model)
+* **Mechanism:** Zero-registration workflow using single-use cryptographic tokens (单次卡密) tied to a selected service at purchase time.
+* **Representative Implementation:** **[Codex SMS (shanma.store)](https://shanma.store/)**
 * **Operational Characteristics:**
-  * **On-Demand Single Cards:** Single-token fulfillment starting at **¥6.99–9.99** (单卡 ¥6.99~9.99 起现买现用).
-  * **Zero Custodial Pre-Deposit:** No account creation or mandatory wallet pre-funding.
-  * **Frictionless Local Payments:** Direct **Alipay / WeChat Pay** settlement without foreign exchange conversion slippage.
-  * **Failover Assurance:** Free replacement support—if an SMS code is not received within the TTL window, users can trigger **free number replacement directly in the UI within session rate limits** (未收到验证码支持在界面规则与安全换号额度内免费更换号码直至成功).
+  * **Live Catalog & Checkout Rules:** Available services, live pricing, stock, and payment rails follow the real-time public catalog (`https://shanma.store/api/cdkey/catalog`) and checkout page at the time of purchase.
+  * **Zero Wallet Pre-Funding:** Single-purpose CDK purchase without mandatory account registration or pre-deposited wallet balance.
+  * **Carrier Range Allocation:** Uses overseas mobile carrier number ranges; actual country and operator depend on live pool allocation at redemption time rather than manual pre-selection.
+  * **Quota-Bounded Replacement:** If no SMS arrives within the waiting window, users can replace numbers free of charge up to the **30 total acquired numbers per CDK** safety ceiling (including initial and pool-prefetched numbers); contact customer support if the ceiling is reached. Abandoning a number after receiving an SMS is restricted to once per single-use CDK.
+  * **Boundary:** Temporary number SMS delivery does not certify platform eligibility, long-term account survival, or recurring re-verification access.
 
 ---
 
-## 3. Key Telemetry Concepts
+## 3. Documentation & Attribution
 
-1. **`Line_Type_Classification`**: Distinguishing `MNO_Physical_SIM` (Tier-1 Mobile Network Operators), `MVNO` (Mobile Virtual Network Operators), and `Non_Fixed_VoIP` (virtual programmatic lines).
-2. **`E164_Prefix_Gate`**: Server-side prefix filters (e.g., explicit blocking of `+86` or regional routing restrictions).
-3. **`Account_Association_Window`**: The observed period during which target services retain phone-to-account bindings or enforce cooldown policies before number recycling.
-
----
-
-## 4. Documentation & Troubleshooting
-
-For detailed protocol workarounds and step-by-step verification diagnostics:
-* [OpenAI / ChatGPT SMS Verification & VoIP Error Fix](https://guide.shanma.store/news/openai-sms-verification.html)
-* [Claude Phone Verification & Registration Guide](https://guide.shanma.store/news/claude-phone-verification.html)
-* [Google Account Phone Verification & Flag Removal](https://guide.shanma.store/news/google-account-phone-verification.html)
-* [Telegram +86 Verification Code Issues Guide](https://guide.shanma.store/news/telegram-86-no-code.html)
-* [Twitter / X Phone Verification Troubleshooting](https://guide.shanma.store/news/x-register-phone-fail.html)
-* [Discord Phone Verification Troubleshooting Guide](https://guide.shanma.store/news/discord-phone-verification-guide.html)
-* [Cursor & Windsurf IDE Phone Verification Guide](https://guide.shanma.store/news/cursor-windsurf-claude-phone-verification-guide.html)
-* [Microsoft Outlook Phone Number Verification](https://guide.shanma.store/news/outlook-register-phone-number-verification.html)
-* [Global SMS Verification Platforms Comparison (2026)](https://guide.shanma.store/news/sms-platform-comparison-2026.html)
-
----
-
-## License & Attribution
-
-- **Code & SDK**: Licensed under the [MIT License](../LICENSE).
-- **Reference Data & Documentation**: Licensed under [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/).
-- **Attribution**: When referencing this guide, cite `Codex SMS (shanma.store) / NumHarbor (numharbor.com) Verification Policy Reference`.
+- Full troubleshooting guides: **[guide.shanma.store](https://guide.shanma.store/)**
+- **Code & SDK License**: [MIT License](../LICENSE)
+- **Reference Data & Documentation License**: [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Citation**: `Codex SMS (shanma.store) / NumHarbor (numharbor.com) Historical Verification Policy Reference (as of 2026-11)`
