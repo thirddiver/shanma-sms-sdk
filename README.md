@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/thirddiver/shanma-sms-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/thirddiver/shanma-sms-sdk/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![Version](https://img.shields.io/badge/version-0.3.2-green.svg)](https://github.com/thirddiver/shanma-sms-sdk)
 
 Official lightweight Python SDK for **Codex SMS** guest CDK SMS verification workflows ([shanma.store](https://shanma.store/)).
@@ -13,7 +13,7 @@ Built for developers and automation workflows interacting with single-use guest 
 
 ## Key Highlights
 
-- **Zero Third-Party Dependencies**: Pure Python 3.9+ standard library (`urllib`, `json`, `dataclasses`) with PEP 561 `py.typed` support.
+- **Zero Third-Party Dependencies**: Pure Python 3.10+ standard library (`urllib`, `json`, `dataclasses`) with PEP 561 `py.typed` support.
 - **Zero-Registration CDK Authentication**: Purchase a single-use guest CDK at [shanma.store](https://shanma.store/) (live pricing, stock, and supported payment methods follow the public catalog at `https://shanma.store/api/cdkey/catalog` and checkout page) and pass it as a Bearer token. Target service and country routing are determined by the purchased CDK itself.
 - **Context Manager Workflow**: Use `with client.activation() as act:` to redeem, poll with monotonic timing bounds, resend, and switch numbers.
 - **Quota-Bounded Number Replacement**: If an SMS code is not received, call `client.switch_phone()` or `act.switch()` for free replacement within validity windows and the system limit of **up to 30 total acquired numbers per CDK** (contact support if the limit is reached). Abandoning a number that already received an SMS requires `confirm_abandon_sms=True` and is limited to **once per single-use CDK**.
